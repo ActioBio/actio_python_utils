@@ -1,0 +1,28 @@
+db:
+  service: bioinfo_data_psql
+  cursor_factory: LoggingCursor
+data:
+  directory: data
+loading:
+  escape: "'\"'"
+  quote: "'\"'"
+  sanitize: False
+logging:
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  level: INFO
+  names:
+    db: sql_debug
+  loggers_to_ignore:
+    - parso.cache
+    - parso.python.diff
+output: output
+spark:
+  codecs:
+    glow: io.projectglow.sql.util.BGZFCodec
+  cores: "*"
+  jdbc: /usr/share/java/postgresql-42.6.0.jar
+  memory: 1g
+  packages:
+    excel: com.crealytics:spark-excel_2.12:3.3.1_0.18.7
+    glow: io.projectglow:glow-spark3_2.12:1.2.1
+    xml: com.databricks:spark-xml_2.12:0.15.0
