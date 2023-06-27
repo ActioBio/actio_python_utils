@@ -247,10 +247,16 @@ class DBConnection(object):
         log_name: str = cfg["logging"]["names"]["db"],
         commit: bool = False,
     ) -> None:
-        if service:
+        # Check for environment variables
+        db_connection_string = os.getenv('DB_CONNECTION_STRING')
+
+        if db_connection_string is not None:
+            self.db_args = db_connection_string
+        elif service:
             self.db_args = {"service": service, "cursor_factory": LoggingCursor}
         else:
             self.db_args = db_args
+
         self.commit = commit
         self.logger = logging.getLogger(log_name)
         self.kwargs = db_args
@@ -261,7 +267,10 @@ class DBConnection(object):
         connection and a cursor, respectively
         """
         self.logger.debug(f"Connecting to DB with parameters: {self.db_args}.")
-        self.db = psycopg2.connect(**self.db_args)
+        if isinstance(self.db_args, str):
+            self.db = psycopg2.connect(self.db_args)
+        else:
+            self.db = psycopg2.connect(**self.db_args)
         self.cur = self.db.cursor()
 
     def disconnect(self, exception: bool) -> None:
