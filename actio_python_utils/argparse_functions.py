@@ -129,7 +129,7 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         use_xml: bool = False,
         use_glow: bool = False,
         use_spark_db: bool = False,
-        dont_create_db_connection = False,
+        dont_create_db_connection: bool = False,
         spark_extra_packages: Optional[Iterable[tuple[str, str]]] = None,
         **kwargs,
     ) -> None:
@@ -297,7 +297,7 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         self,
         short_arg: Optional[str] = "-s",
         long_arg: Optional[str] = "--service",
-        default: str = utils.cfg["db"]["service"],
+        default: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -308,8 +308,8 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         :type short_arg: str or None
         :param long_arg: Long argument name to use, defaults to "--service"
         :type long_arg: str or None
-        :param str default: Default service, defaults to
-            utils.cfg["db"]["service"]
+        :param default: Default service, defaults to None
+        :type default: str or None
         :param **kwargs: Any additional named arguments
         """
         self.add_argument(
@@ -472,9 +472,7 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         :return: The psycopg2 connection
         :rtype: psycopg2.extensions.connection
         """
-        return udbf.connect_to_db(
-            args.db_service if "db_service" in args else utils.cfg["db"]
-        )
+        return udbf.connect_to_db(args.db_service if "db_service" in args else None)
 
     def setup_spark(
         self, args: argparse.Namespace
@@ -505,9 +503,7 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
             )
         )
         return_value.append(
-            udbf.get_pg_config(
-                args.db_service if "db_service" in args else utils.cfg["db"]["service"]
-            )
+            udbf.get_pg_config(args.db_service if "db_service" in args else None)
             if self.use_spark_db
             else None
         )

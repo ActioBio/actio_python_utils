@@ -18,15 +18,16 @@ logger = logging.getLogger(__name__)
 
 
 def get_pg_config(
-    service: str = cfg["db"]["service"],
+    service: Optional[str] = None,
     service_fn: str = pgtoolkit.service.find(),
     pgpass_fn: str = os.path.join(os.path.expanduser("~"), ".pgpass"),
 ) -> pgtoolkit.pgpass.PassEntry:
     """
     Locates the PostgreSQL login credentials given a service name
+    Uses service = $PGSERVICE or cfg["db"]["service"] if not specified.
 
-    :param str service: The PostgreSQL service name to get, defaults to
-        cfg["db"]["service"]
+    :param service: The PostgreSQL service name to get, defaults to
+    :type service: str or None
     :param str service_fn: The path to the file containing service definitions,
         defaults to pgtoolkit.service.find()
     :param str pgpass_fn: The path to the file containing database login data,
@@ -38,6 +39,10 @@ def get_pg_config(
         raise OSError(f"Service file {service_fn} does not exist.")
     if not os.path.isfile(pgpass_fn):
         raise OSError(f"pgpass file {pgass_fn} does not exist.")
+    if not service:
+        service = os.getenv("PGSERVICE")
+        if not service:
+            service = cfg["db"]["service"]
     services = pgtoolkit.service.parse(service_fn)
     try:
         service_record = services[service]
@@ -223,43 +228,91 @@ def replace_dict_values_with_global_definition(
 replace_dict_values_with_global_definition(cfg["db"])
 
 
+def get_db_args(
+    service: Optional[str] = None,
+    db_args: Optional[Mapping[Hashable, Any]] = None,
+    logger: Optional[logging.Logger] = None,
+) -> dict:
+    """
+    Returns a dict of arguments to log in with psycopg2.
+    Resolution order for connecting to a database is as follows:
+        1a. service, referring to a PostgreSQL service name, normally defined in
+            ~/.pg_service.conf
+        1b. db_args, arbitrary dictionary of arguments
+        2. Environment variable DB_CONNECTION_STRING with format
+            postgres://your_user:your_password@your_host:your_port/your_database
+        3. Environment variable PGSERVICE, referring to a PostgreSQL service
+            name
+        4. cfg["db"], which should resolve to a dictionary of arguments
+
+    :param service: The PostgreSQL service to connect to, defaults to None
+    :type service: str or None
+    :param db_args: A mapping of database connection arguments, defaults to None
+    :type db_args: Mapping or None
+    :param logger: Optional logger to write to
+    :type logger: logging.Logger or None
+    :raises ValueError: If service and db_args are specified
+    :return: The dict of login arguments
+    :rtype: dict
+    """
+    # Check for environment variables
+    db_connection_string = os.getenv("DB_CONNECTION_STRING")
+    pgservice = os.getenv("PGSERVICE")
+    if service:
+        if db_args:
+            raise ValueError("Specify up to one of service/db_args, not both.")
+        message = "Using service for login."
+        db_args = {"service": service, "cursor_factory": cursor_factory}
+    elif db_args:
+        message = "Using db_args for login."
+        db_args = db_args
+    elif db_connection_string:
+        message = "Using DB_CONNECTION_STRING environment variable for login."
+        db_args = {
+            "dsn": db_connection_string,
+            "cursor_factory": cursor_factory,
+        }
+    elif pgservice:
+        message = "Using PGSERVICE environment variable for login."
+        db_args = {"service": pgservice, "cursor_factory": cursor_factory}
+    else:
+        message = "Using cfg for login."
+        db_args = cfg["db"]
+    if logger:
+        logger.debug(message)
+    return db_args
+
+
 class DBConnection(object):
     """
     Creates a psycopg2 database connection with the specified parameters and
-    acts as a context manager
+    acts as a context manager.
 
-    :param service: The PostgreSQL service to connect to
+    :param service: The PostgreSQL service to connect to, defaults to None
     :type service: str or None
-    :param db_args: A mapping of database connection arguments, defaults to
-        cfg["db"]
+    :param db_args: A mapping of database connection arguments, defaults to None
     :type db_args: Mapping or None
     :param str log_name: The name to give the logger, defaults to
         cfg["logging"]["names"]["db"]
     :param bool commit: Commit the transaction upon closing the connection if no
         errors were encountered, defaults to False
+    :param psycopg2.cursor_factory: The class of cursor to use for the
+        connection by default (used for service/$DB_CONNECTION_STRING, defaults
+        to LoggingCursor
+    :raises ValueError: If service and db_args are specified
     """
 
     def __init__(
         self,
         service: Optional[str] = None,
-        db_connection_string: Optional[str] = None,
-        db_args: Optional[Mapping[str, Any]] = cfg["db"],
+        db_args: Optional[Mapping[str, Any]] = None,
         log_name: str = cfg["logging"]["names"]["db"],
         commit: bool = False,
+        cursor_factory: psycopg2.extensions.cursor = LoggingCursor,
     ) -> None:
-        # Check for environment variables
-        db_connection_string = os.getenv('DB_CONNECTION_STRING')
-
-        if db_connection_string is not None:
-            self.db_args = db_connection_string
-        elif service:
-            self.db_args = {"service": service, "cursor_factory": LoggingCursor}
-        else:
-            self.db_args = db_args
-
-        self.commit = commit
         self.logger = logging.getLogger(log_name)
-        self.kwargs = db_args
+        self.commit = commit
+        self.db_args = get_db_args(service, db_args, self.logger)
 
     def connect(self) -> None:
         """
@@ -267,10 +320,7 @@ class DBConnection(object):
         connection and a cursor, respectively
         """
         self.logger.debug(f"Connecting to DB with parameters: {self.db_args}.")
-        if isinstance(self.db_args, str):
-            self.db = psycopg2.connect(self.db_args)
-        else:
-            self.db = psycopg2.connect(**self.db_args)
+        self.db = psycopg2.connect(**self.db_args)
         self.cur = self.db.cursor()
 
     def disconnect(self, exception: bool) -> None:
@@ -310,6 +360,61 @@ class DBConnection(object):
         """
         self.disconnect(exc_type is not None)
 
+    """
+    Creates a psycopg2 database connection with the specified parameters and
+    acts as a context manager.
+    Resolution order for connecting to a database is as follows:
+        1a. service, referring to a PostgreSQL service name, normally defined in
+            ~/.pg_service.conf
+        1b. db_args, arbitrary dictionary of arguments
+        2. Environment variable DB_CONNECTION_STRING with format
+            postgres://your_user:your_password@your_host:your_port/your_database
+        3. Environment variable PGSERVICE
+        3. cfg["db"], which should resolve to a dictionary of arguments
+
+    :param service: The PostgreSQL service to connect to, defaults to None
+    :type service: str or None
+    :param db_args: A mapping of database connection arguments, defaults to None
+    :type db_args: Mapping or None
+    :param str log_name: The name to give the logger, defaults to
+        cfg["logging"]["names"]["db"]
+    :param bool commit: Commit the transaction upon closing the connection if no
+        errors were encountered, defaults to False
+    :param psycopg2.cursor_factory: The class of cursor to use for the
+        connection by default (used for service/$DB_CONNECTION_STRING, defaults
+        to LoggingCursor
+    :raises ValueError: If service and db_args are specified
+    """
+
+    def __init__(
+        self,
+        service: Optional[str] = None,
+        db_args: Optional[Mapping[str, Any]] = None,
+        log_name: str = cfg["logging"]["names"]["db"],
+        commit: bool = False,
+        cursor_factory: psycopg2.extensions.cursor = LoggingCursor,
+    ) -> None:
+        # Check for environment variables
+        db_connection_string = os.getenv("DB_CONNECTION_STRING")
+        pgservice = os.getenv("PGSERVICE")
+        if service:
+            if db_args:
+                raise ValueError("Specify up to one of service/db_args, not both.")
+            self.db_args = {"service": service, "cursor_factory": cursor_factory}
+        elif db_args:
+            self.db_args = db_args
+        elif db_connection_string:
+            self.db_args = {
+                "dsn": db_connection_string,
+                "cursor_factory": cursor_factory,
+            }
+        else:
+            self.db_args = cfg["db"]
+
+        self.commit = commit
+        self.logger = logging.getLogger(log_name)
+        self.db_args = db_args
+
 
 def connect_to_db(
     service: Optional[str] = None,
@@ -327,6 +432,7 @@ def connect_to_db(
     :return: The database connection
     :rtype: psycopg2.extensions.connection
     """
+    db_args = get_db_args(service, db_args, logger)
     if service:
         db_args = {"service": service, "cursor_factory": LoggingCursor}
     if not db_args:
