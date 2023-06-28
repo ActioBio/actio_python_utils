@@ -3,8 +3,19 @@ from psycopg2 import OperationalError
 from unittest import main, mock, TestCase
 from actio_python_utils import database_functions as df
 
+# either set global environment variables or set these variables
+PGSERVICE = "your_service"
+DB_CONNECTION_STRING = "postgres://username:password@host:port/dbname"
 
-class test_get_db_args(TestCase):
+
+if "PGSERVICE" in os.environ:
+    PGSERVICE = os.environ.pop("PGSERVICE")
+
+if "DB_CONNECTION_STRING" in os.environ:
+    DB_CONNECTION_STRING = os.environ.pop("DB_CONNECTION_STRING")
+
+
+class TestGetDBArgs(TestCase):
     def test_service(self):
         self.assertEqual(
             df.get_db_args(service="apple")["service"], "apple"
@@ -13,20 +24,19 @@ class test_get_db_args(TestCase):
     def test_service_and_db_args(self):
         with self.assertRaises(ValueError):
             df.get_db_args(
-                service="bioinfo_data_psql", db_args={"service": "bioinfo_data_psql"}
+                service=PGSERVICE, db_args={"service": PGSERVICE}
             )
 
     @mock.patch.dict(
         os.environ,
         {
-            "DB_CONNECTION_STRING": "postgres://your_user:your_password@your_host:your_port/your_database",
-            "PGSERVICE": "xyz",
+            "DB_CONNECTION_STRING": DB_CONNECTION_STRING,
+            "PGSERVICE": PGSERVICE,
         },
     )
     def test_db_connection_string(self):
         self.assertEqual(
-            df.get_db_args()["dsn"],
-            "postgres://your_user:your_password@your_host:your_port/your_database",
+            df.get_db_args()["dsn"], DB_CONNECTION_STRING,
         )
 
     @mock.patch.dict(os.environ, {"PGSERVICE": "abc"})
@@ -34,20 +44,20 @@ class test_get_db_args(TestCase):
         self.assertEqual(df.get_db_args()["service"], "abc")
 
     def test_cfg(self):
-        self.assertEqual(df.get_db_args()["service"], "bioinfo_data_psql")
+        self.assertEqual(df.get_db_args()["service"], PGSERVICE)
 
 
-class test_db_connection_db_args(TestCase):
+class TestDBConnectionDBArgs(TestCase):
     def setUp(self):
-        self.db = df.DBConnection(service="bioinfo_data_psql")
+        self.db = df.DBConnection(service=PGSERVICE)
 
     def test_db_args(self):
-        self.assertEqual(self.db.db_args["service"], "bioinfo_data_psql")
+        self.assertEqual(self.db.db_args["service"], PGSERVICE)
 
 
-class test_db_connection_service(TestCase):
+class TestDBConnectionService(TestCase):
     def setUp(self):
-        self.db = df.DBConnection(service="bioinfo_data_psql")
+        self.db = df.DBConnection(service=PGSERVICE)
 
     def test_connect(self):
         try:
