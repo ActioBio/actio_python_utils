@@ -10,7 +10,9 @@ from typing import Any, Optional
 from .database_functions import get_pg_config
 from .utils import cast_chromosome_to_int, cfg
 
+DataFrame = pyspark.sql.dataframe.DataFrame
 Row = pyspark.sql.Row
+SparkSession = pyspark.sql.session.SparkSession
 stypes = pyspark.sql.types
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ def setup_spark(
     glow_package: str = cfg["spark"]["packages"]["glow"],
     xml_package: str = cfg["spark"]["packages"]["xml"],
     spark_logging_level: int | str = logging.ERROR,
-) -> pyspark.sql.session.SparkSession:
+) -> SparkSession:
     """
     Configures and creates a PySpark session according to the supplied arguments
 
@@ -67,13 +69,11 @@ def setup_spark(
         with, defaults to logging.ERROR
     :type spark_logging_level: int or str or None
     :return: The configured PySpark session
-    :rtype: pyspark.sql.session.SparkSession
+    :rtype: SparkSession
     """
     logging.getLogger("py4j").setLevel(spark_logging_level)
     logging.getLogger("pyspark").setLevel(spark_logging_level)
-    spark = pyspark.sql.session.SparkSession.builder.config(
-        "spark.driver.memory", memory
-    )
+    spark = SparkSession.builder.config("spark.driver.memory", memory)
     if extra_options:
         for option, value in extra_options:
             spark = spark.option(option, value)
@@ -102,16 +102,16 @@ def setup_spark(
 
 
 def load_dataframe(
-    spark: pyspark.sql.session.SparkSession,
+    self: SparkSession,
     path: str,
     format: str = "parquet",
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Load and return the specified data source using PySpark
 
-    :param pyspark.sql.session.SparkSession spark: The PySpark session to use
+    :param SparkSession self: The PySpark session to use
     :param str path: The path to the data source to load
     :param str format: The format of the data source, defaults to "parquet"
     :param load_config_options: Any additonal config options to load data,
@@ -119,9 +119,9 @@ def load_dataframe(
     :type load_config_options: Iterable or None
     :params **kwargs: Any additional named arguments
     :return: The dataframe requested
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
-    load_func = spark.read.format(format)
+    load_func = self.read.format(format)
     if load_config_options:
         for option, value in load_config_options:
             logger.debug(f"Setting {option} to {value}.")
@@ -130,18 +130,21 @@ def load_dataframe(
     return load_func.load(path, **kwargs)
 
 
+SparkSession.load_dataframe = load_dataframe
+
+
 def load_xml_to_dataframe(
-    spark: pyspark.sql.session.SparkSession,
+    self: SparkSession,
     xml_fn: str,
     row_tag: str,
     schema: Optional[str] = None,
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Load and return the specified XML file with PySpark
 
-    :param pyspark.sql.session.SparkSession sparak: The PySpark session to use
+    :param SparkSession self: The PySpark session to use
     :param str xml_fn: The path to the data source to load
     :param str row_tag: The XML tag that delimits records
     :param schema: The path to an optional XSD schema to validate records,
@@ -152,15 +155,14 @@ def load_xml_to_dataframe(
     :type load_config_options: Iterable or None
     :param **kwargs: Any additional named arguments
     :return: The dataframe requested
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     if load_config_options is None:
         load_config_options = []
     load_config_options.append(("rowTag", row_tag))
     if schema:
         load_config_options.append(("rowValidationPath", schema))
-    return load_dataframe(
-        spark,
+    return self.load_dataframe(
         xml_fn,
         format="xml",
         load_config_options=load_config_options,
@@ -168,18 +170,21 @@ def load_xml_to_dataframe(
     )
 
 
+SparkSession.load_xml_to_dataframe = load_xml_to_dataframe
+
+
 def load_db_to_dataframe(
-    spark: pyspark.sql.session.SparkSession,
+    self: SparkSession,
     pgpass_record: pgtoolkit.pgpass.PassEntry = None,
     relation: Optional[str] = None,
     query: Optional[str] = None,
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Return a PySpark dataframe from either a relation or query
 
-    :param pyspark.sql.session.SparkSession spark: The PySpark session to use
+    :param SparkSession self: The PySpark session to use
     :param pgpass_record: PostgreSQL login credentials, defaults to getting the
         data from get_pg_config()
     :type pgpass_record: pgtoolkit.pgpass.PassEntry or None
@@ -192,11 +197,11 @@ def load_db_to_dataframe(
     :type load_config_options: Iterable or None
     :param **kwargs: Any additional named arguments
     :return: The dataframe requested
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     if relation is None == query is None:
         raise ValueError(f"Specify relation or query and not both.")
-    load_func = spark.read.format("jdbc")
+    load_func = self.read.format("jdbc")
     if not pgpass_record:
         pgpass_record = get_pg_config()
     load_func = (
@@ -218,17 +223,20 @@ def load_db_to_dataframe(
     return load_func.load(**kwargs)
 
 
+SparkSession.load_db_to_dataframe = load_db_to_dataframe
+
+
 def load_excel_to_dataframe(
-    spark: pyspark.sql.session.SparkSession,
+    self: SparkSession,
     xl_fn: str,
     header: bool = True,
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Load and return the specified Excel spreadsheet with PySpark
 
-    :param pyspark.sql.session.SparkSession sparak: The PySpark session to use
+    :param SparkSession self: The PySpark session to use
     :param str xl_fn: The path to the data source to load
     :param bool header: Whether the data source has a header or not, defaults to
         True
@@ -237,13 +245,12 @@ def load_excel_to_dataframe(
     :type load_config_options: Iterable or None
     :param **kwargs: Any additional named arguments
     :return: The dataframe requested
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     if load_config_options is None:
         load_config_options = []
     load_config_options.append(("header", "true" if header else "false"))
-    return load_spark_dataframe(
-        spark,
+    return self.load_spark_dataframe(
         xl_fn,
         format="com.crealytics.spark.excel",
         load_config_options=load_config_options,
@@ -251,85 +258,97 @@ def load_excel_to_dataframe(
     )
 
 
+SparkSession.load_excel_to_dataframe = load_excel_to_dataframe
+
+
 # for use with PySpark, casts string representations of human chromosomes to
 # integers
 convert_chromosome = F.udf(cast_chromosome_to_int, stypes.IntegerType())
 
 
-def count_nulls(df: pyspark.sql.dataframe.DataFrame) -> pyspark.sql.dataframe.DataFrame:
+def count_nulls(
+    self: DataFrame,
+) -> DataFrame:
     """
     Return a PySpark dataframe with the number of null values in each column of
     a dataframe
 
-    :param pyspark.sql.dataframe.DataFrame df: The dataframe to summarize
+    :param DataFrame self: The dataframe to summarize
     :return: The new dataframe with null counts per column
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
-    return df.select(
-        [F.count(F.when(F.isnull(col), col)).alias(col) for col in df.columns]
+    return self.select(
+        [F.count(F.when(F.isnull(col), col)).alias(col) for col in self.columns]
     )
 
 
-def count_columns_with_string(
-    df: pyspark.sql.dataframe.DataFrame, string: str = "|"
-) -> pyspark.sql.dataframe.DataFrame:
+DataFrame.count_nulls = count_nulls
+
+
+def count_columns_with_string(self: DataFrame, string: str = "|") -> DataFrame:
     """
     Return a PySpark dataframe with the number of times a given string occurs
     in each string column in a dataframe
 
-    :param pyspark.sql.dataframe.DataFrame df: The dataframe to summarize
+    :param DataFrame self: The dataframe to summarize
     :param str string: The string to search for, defaults to "|"
     :return: The new dataframe with counts per column
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
-    return df.select(
+    return self.select(
         [
             F.count(F.when(F.col(col.name).contains(s), 1)).alias(col.name)
-            for col in df.schema
+            for col in self.schema
             if type(col.dataType) is stypes.StringType
         ]
     )
 
 
+DataFrame.count_columns_with_string = count_columns_with_string
+
+
 def count_distinct_values(
-    df: pyspark.sql.dataframe.DataFrame,
+    self: DataFrame,
     columns_to_ignore: Container[str] = set(),
     approximate: bool = False,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Return a new PySpark dataframe with the number of distinct values in each
     column.  Uses count_distinct by default and approx_count_distinct if
     approximate == True
 
-    :param pyspark.sql.dataframe.DataFrame df: The dataframe to summarize
+    :param DataFrame self: The dataframe to summarize
     :param Container columns_to_ignore: An optional set of columns to not
         summarize, defaults to set()
     :param bool approximate: Get approximate counts instead of exact (faster),
         defaults to False
     :return: The new dataframe with counts of distinct values per column
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     func = F.approx_count_distinct if approximate else F.count_distinct
-    return df.agg(
+    return self.agg(
         *[
             func(F.col(col)).alias(col)
-            for col in df.columns
+            for col in self.columns
             if col not in columns_to_ignore
         ]
     )
 
 
+DataFrame.count_distinct_values = count_distinct_values
+
+
 def convert_dicts_to_dataframe(
-    spark: pyspark.sql.session.SparkSession,
+    self: SparkSession,
     dict_list: Optional[Iterable[Mapping[str, Any]]] = None,
     iter_func: Optional[Callable[[], Iterable[Mapping[str, Any]]]] = None,
     coerce_to_lists_if_needed: bool = True,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Converts either a list of dicts (dict_list) or a function that returns an
     iterator of dicts (iter_func) to a PySpark dataframe
 
-    :param pyspark.sql.session.SparkSession spark: The SparkSession to use
+    :param SparkSession self: The SparkSession to use
     :param dict_list: An list of dicts representing rows, defaults to None
     :type dict_list: Iterable or None
     :param iter_func: A function that returns an iterator of dicts representing
@@ -339,7 +358,7 @@ def convert_dicts_to_dataframe(
         value in a row is a list, and if so, convert any non-lists in the
         column to a list, defaults to True
     :return: A new dataframe built from the provided rows of dicts
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     if dict_list and iter_func:
         raise ValueError("Only one of dict_list or iter_func should be specified.")
@@ -364,20 +383,23 @@ def convert_dicts_to_dataframe(
                     record[field] = [record[field]]
         for field in all_fields - record.keys():
             record[field] = None
-    return spark.createDataFrame(Row(**dict(sorted(x.items()))) for x in iter_func())
+    return self.createDataFrame(Row(**dict(sorted(x.items()))) for x in iter_func())
+
+
+SparkSession.convert_dicts_to_dataframe = convert_dicts_to_dataframe
 
 
 def serialize_array_field(
-    df: pyspark.sql.dataframe.DataFrame,
+    self: DataFrame,
     column: str,
     new_column: str,
     dtype: pyspark.sql.types.ArrayType,
     struct_columns_to_use: Optional[Container] = None,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Serializes an ArrayType field for output.
 
-    :param pyspark.sql.dataframe.DataFrame df: The dataframe to use
+    :param DataFrame self: The dataframe to use
     :param str column: The name of the column to serialize
     :param str new_column: The name to give the new serialized column
     :param pyspark.sql.types.ArrayType: The column definition
@@ -386,7 +408,7 @@ def serialize_array_field(
     :type struct_columns_to_use: Container or None
     :raises NotImplementedError: If the type in the array is a nested struct
     :return: A new dataframe with the serialized column
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     subtype = type(dtype.elementType)
     if subtype is stypes.StringType:
@@ -457,7 +479,7 @@ def serialize_array_field(
     else:
         # identity function should be sufficient
         func = lambda x: F.when(x.isNull(), "").otherwise(x)
-    return df.withColumn(
+    return self.withColumn(
         tmp_column,
         F.when(
             F.size(F.col(column)) > 0,
@@ -470,19 +492,20 @@ def serialize_array_field(
     )
 
 
-def serialize_bool_field(
-    df: pyspark.sql.dataframe.DataFrame, column: str, new_column: str
-) -> pyspark.sql.dataframe.DataFrame:
+DataFrame.serialize_array_field = serialize_array_field
+
+
+def serialize_bool_field(self: DataFrame, column: str, new_column: str) -> DataFrame:
     """
     Serializes a BooleanType field for output.
 
-    :param pyspark.sql.dataframe.DataFrame df: The dataframe to use
+    :param DataFrame self: The dataframe to use
     :param str column: The name of the column to serialize
     :param new_column: The name to give the new serialized column
     :return: A new dataframe with the serialized column
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
-    return df.withColumn(
+    return self.withColumn(
         new_column,
         F.when(F.col(column).isNull(), r"\N")
         .when(F.col(column) == True, "t")
@@ -490,20 +513,21 @@ def serialize_bool_field(
     )
 
 
-def serialize_string_field(
-    df: pyspark.sql.dataframe.DataFrame, column: str, new_column: str
-) -> pyspark.sql.dataframe.DataFrame:
+DataFrame.serialize_bool_field = serialize_bool_field
+
+
+def serialize_string_field(self: DataFrame, column: str, new_column: str) -> DataFrame:
     """
     Serializes a StringType field for output.
 
-    :param pyspark.sql.dataframe.DataFrame df: The dataframe to use
+    :param DataFrame self: The dataframe to use
     :param str column: The name of the column to serialize
     :param new_column: The name to give the new serialized column
     :return: A new dataframe with the serialized column
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     # escape \t, \n, and \r
-    return df.withColumn(
+    return self.withColumn(
         new_column,
         F.when(F.col(column).isNull(), r"\N").otherwise(
             F.trim(F.regexp_replace(column, "([\t\r\n])", r"\\$1"))
@@ -511,16 +535,19 @@ def serialize_string_field(
     )
 
 
+DataFrame.serialize_string_field = serialize_string_field
+
+
 def serialize_struct_field(
-    df: pyspark.sql.dataframe.DataFrame,
+    self: DataFrame,
     column: str,
     new_column: str,
     struct_columns_to_use: Optional[Container] = None,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Serializes a StructType field for output.
 
-    :param pyspark.sql.dataframe.DataFrame df: The dataframe to use
+    :param DataFrame self: The dataframe to use
     :param str column: The name of the column to serialize
     :param new_column: The name to give the new serialized column
     :param struct_columns_to_use: A set of struct values to use (assuming column
@@ -528,7 +555,7 @@ def serialize_struct_field(
     :type struct_columns_to_use: Container or None
     :raises NotImplementedError: If the type in the array is an array or struct
     :return: A new dataframe with the serialized column
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     # will create a function to convert each element of the struct
     funcs = {}
@@ -578,7 +605,7 @@ def serialize_struct_field(
                 if subfield_type is stypes.StringType:
                     func = F.trim(func)
             funcs[subfield.name] = func
-    return df.withColumn(
+    return self.withColumn(
         new_column,
         F.when(F.col(column).isNull(), r"\N").otherwise(
             F.concat(
@@ -592,12 +619,15 @@ def serialize_struct_field(
     )
 
 
+DataFrame.serialize_struct_field = serialize_struct_field
+
+
 def serialize_field(
-    df: pyspark.sql.dataframe.DataFrame,
+    self: DataFrame,
     column: str,
     new_column: Optional[str] = None,
     struct_columns_to_use: Optional[Container] = None,
-) -> pyspark.sql.dataframe.DataFrame:
+) -> DataFrame:
     """
     Operates on a PySpark dataframe and converts any field of either atoms or
     structs, or any array of either of those (but not nested) to the properly
@@ -607,7 +637,7 @@ def serialize_field(
     N.B. All string types should be StringType as opposed to CharType or
     VarcharType.
 
-    :param pyspark.sql.dataframe.DataFrame df: The dataframe to use
+    :param DataFrame self: The dataframe to use
     :param str column: The name of the column to serialize
     :param new_column: The name to give the new serialized column, defaults to
         None
@@ -616,7 +646,7 @@ def serialize_field(
         is a struct), defaults to None
     :type struct_columns_to_use: Container or None
     :return: A new dataframe replacing original column with a serialized one
-    :rtype: pyspark.sql.dataframe.DataFrame
+    :rtype: DataFrame
     """
     if new_column:
         drop = ""
@@ -628,16 +658,21 @@ def serialize_field(
     dtype = dict(zip(df.schema.names, df.schema.fields))[column].dataType
     field_type = type(dtype)
     if field_type is stypes.ArrayType:
-        df = serialize_array_field(df, column, tmp_column, dtype, struct_columns_to_use)
+        df = self.serialize_array_field(
+            column, tmp_column, dtype, struct_columns_to_use
+        )
     elif field_type is stypes.BooleanType:
-        df = serialize_bool_field(df, column, tmp_column)
+        df = self.serialize_bool_field(column, tmp_column)
     elif field_type is stypes.StringType:
-        df = serialize_string_field(df, column, tmp_column)
+        df = self.serialize_string_field(column, tmp_column)
     elif field_type is stypes.StructType:
-        df = serialize_struct_field(df, column, tmp_column, struct_columns_to_use)
+        df = self.serialize_struct_field(column, tmp_column, struct_columns_to_use)
     else:
         # add more conversions here for other data types if needed
-        df = df.withColumn(
+        df = self.withColumn(
             tmp_column, F.when(F.col(column).isNull(), r"\N").otherwise(F.col(column))
         )
     return df.drop(drop).withColumnRenamed(tmp_column, new_column)
+
+
+DataFrame.serialize_field = serialize_field
