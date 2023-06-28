@@ -18,12 +18,13 @@ test_requirements = []
 setup(
     author="Brett Copeland",
     author_email="brcopeland@gmail.com",
-    python_requires=">=3.10",
+    python_requires=">=3.9",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "Natural Language :: English",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
     ],
     description="Python utility functions.",
