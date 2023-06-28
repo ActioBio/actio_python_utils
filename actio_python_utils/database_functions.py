@@ -367,8 +367,7 @@ class DBConnection(object):
 
 def connect_to_db(
     service: Optional[str] = None,
-    db_args: Optional[MutableMapping[str, str]] = cfg["db"],
-    **kwargs,
+    db_args: Optional[MutableMapping[str, str]] = None,
 ) -> psycopg2.extensions.connection:
     """
     Return a connection to the specified PostgreSQL database
@@ -382,11 +381,6 @@ def connect_to_db(
     :rtype: psycopg2.extensions.connection
     """
     db_args = get_db_args(service, db_args, logger)
-    if service:
-        db_args = {"service": service, "cursor_factory": LoggingCursor}
-    if not db_args:
-        db_args = {}
-    db_args.update(kwargs)
     logger.debug(f"Connecting to DB with parameters: {db_args}.")
     return psycopg2.connect(**db_args)
 
