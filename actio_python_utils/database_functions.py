@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def get_pg_config(
     service: Optional[str] = None,
-    service_fn: str = pgtoolkit.service.find(),
+    service_fn: Optional[str] = None,
     pgpass_fn: str = os.path.join(os.path.expanduser("~"), ".pgpass"),
 ) -> pgtoolkit.pgpass.PassEntry:
     """
@@ -28,13 +28,16 @@ def get_pg_config(
 
     :param service: The PostgreSQL service name to get, defaults to
     :type service: str or None
-    :param str service_fn: The path to the file containing service definitions,
-        defaults to pgtoolkit.service.find()
+    :param service_fn: The path to the file containing service definitions.
+        Will use pgtoolkit.service.find() if not specified, defaults to None
+    :type service_fn: str or None
     :param str pgpass_fn: The path to the file containing database login data,
         defaults to os.path.join(os.path.expanduser("~"), ".pgpass")
     :return: The database login credentials corresponding to the given service
     :rtype: pgtoolkit.pgpass.PassEntry
     """
+    if not service_fn:
+        service_fn = pgtoolkit.service.find()
     if not os.path.isfile(service_fn):
         raise OSError(f"Service file {service_fn} does not exist.")
     if not os.path.isfile(pgpass_fn):
