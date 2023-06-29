@@ -481,7 +481,7 @@ def extract_excel_sheet(
 
 class CustomCSVDialect(csv.Dialect):
     delimiter = ","
-    escapechar = ""
+    escapechar = "\\"
     lineterminator = "\n"
     quotechar = '"'
     quoting = csv.QUOTE_MINIMAL
