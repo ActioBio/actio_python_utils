@@ -82,6 +82,22 @@ def dir_exists(dirn: str) -> str:
         raise OSError(f"{dirn} does not exist.")
 
 
+def str_from_file(fn: str) -> str:
+    """
+    Returns the text from a file name
+
+    :param str fn: The file name to read
+    :raises OSError: if fn doesn't exist
+    :return: The string representing the content of fn
+    :rtype: str
+    """
+    if os.path.isfile(fn):
+        with utils.zopen(fn) as fh:
+            return fh.read()
+    else:
+        raise OSError(f"{fn} does not exist.")
+
+
 class EnhancedArgumentParser(argparse.ArgumentParser):
     """
     Customized ArgumentParser that sets description automatically, uses both
