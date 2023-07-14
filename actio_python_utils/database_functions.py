@@ -75,14 +75,14 @@ def split_schema_from_table(
     Split a possibly schema qualified table name into its schema and table names
 
     :param str table: The possibly schema qualified table name
-    :param str schema: The default schema name, defaults to "public"
+    :param str default_schema: The default schema name, defaults to "public"
     :return: A list with the schema name and the table name
     :rtype: list
     """
     if "." in table:
         return table.split(".", 1)
     else:
-        return [schema, table]
+        return [default_schema, table]
 
 
 @contextmanager
