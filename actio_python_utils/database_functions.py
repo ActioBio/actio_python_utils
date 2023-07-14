@@ -542,7 +542,7 @@ def drop_table_keys(cur, table_list, dry_run=False):
     if not table_list:
         return
     table_list = [split_schema_from_table(table) for table in table_list]
-    query(
+    cur.execute(
         """SELECT n.nspname, c.relname AS table_name, c2.relname AS index_name
         FROM pg_index x
         JOIN pg_class c ON x.indrelid = c.oid
@@ -559,7 +559,7 @@ def drop_table_keys(cur, table_list, dry_run=False):
     )
     indexes = cur.fetchall()
     for nspname, table_name, index_name in indexes:
-        query(f"DROP INDEX {nspname}.{index_name}", dry_run=dry_run)
+        cur.execute(f"DROP INDEX {nspname}.{index_name}", dry_run=dry_run)
 
 
 def import_csv(
@@ -579,7 +579,7 @@ def import_csv(
 ):
     if truncate:
         logger.info(f"Truncating table {table_name}.")
-        query(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
+        cur.execute(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
     if header:
         csv_fields = get_table_csv_fields(table_fn, sep, sanitize)
         db_table_fields = get_db_table_columns(cur, table_name)
@@ -629,7 +629,7 @@ def import_csv(
     if recreate_table_constraints:
         logger.debug("Adding table constraints back.")
         for constraint in constraints:
-            query(constraint)
+            cur.execute(constraint)
 
 
 def import_text(
@@ -646,7 +646,7 @@ def import_text(
 ):
     if truncate:
         logger.info(f"Truncating table {table_name}.")
-        query(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
+        cur.execute(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
     if recreate_table_constraints:
         logger.debug("Temporarily dropping table constraints.")
         constraints = get_table_constraint_statements(cur, [table_name])
@@ -663,7 +663,7 @@ def import_text(
     if recreate_table_constraints:
         logger.debug("Adding table constraints back.")
         for constraint in constraints:
-            query(constraint)
+            cur.execute(constraint)
 
 
 def get_table_csv_fields(
