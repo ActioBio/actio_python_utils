@@ -68,6 +68,23 @@ def get_pg_config(
         raise ValueError("Didn't find the matching service.")
 
 
+def split_schema_from_table(
+    table: str, default_schema: str = "public"
+) -> tuple[str, str]:
+    """
+    Split a possibly schema qualified table name into its schema and table names
+
+    :param str table: The possibly schema qualified table name
+    :param str schema: The default schema name, defaults to "public"
+    :return: A list with the schema name and the table name
+    :rtype: list
+    """
+    if "." in table:
+        return table.split(".", 1)
+    else:
+        return [schema, table]
+
+
 @contextmanager
 def savepoint(cur: psycopg2.extensions.cursor, savepoint: str = "savepoint") -> None:
     """
@@ -183,6 +200,255 @@ class LoggingCursor(DictCursor):
         self._log_statement(self.mogrify(query, vars).decode(), dry_run)
         if not dry_run:
             super().execute(query, vars, *args, **kwargs)
+
+    def get_table_constraint_statements(self, table_list: Iterable[str]) -> list[str]:
+        """
+        Takes a list of tables and returns a list of all the SQL definitions of
+        constraints defined on the tables.  The constraints are ordered by keys,
+        then other constraints on the tables, and lastly foreign keys defined on
+        other tables that reference one of the tables specified.
+        The purpose of this is to be able to drop these constraints, load data, and
+        recreate them for efficiency.
+
+        :param Iterable table_list: The list of tables to get constraints on
+        :return: The list of constraints
+        :rtype: list
+        """
+        if not table_list:
+            return []
+        table_list = [split_schema_from_table(table) for table in table_list]
+        # order constraints to list keys first for efficiency
+        self.execute(
+            """
+            (
+            /*  this gets constraints defined on the tables of interest a rank given by
+                primary key -> rank = 0,
+                unique -> rank = 1,
+                others (CHECK, FOREIGN KEY) -> rank = 3
+            */
+                SELECT 'ALTER TABLE '||n.nspname||'."'||c.relname||'" ADD CONSTRAINT "'
+                    ||con.conname||'" '||pg_get_constraintdef(con.oid) AS statement,
+                    CASE WHEN con.contype = 'p' THEN 0
+                         WHEN con.contype = 'u' THEN 1
+                         ELSE 3
+                    END AS rank
+                FROM pg_constraint con
+                JOIN pg_class c ON con.conrelid = c.oid
+                JOIN pg_namespace n ON c.relnamespace = n.oid
+                WHERE {0})
+            UNION
+            (
+            /*  this gets non-primary key indexes (because the first subquery gets
+                them already) and sets rank = 2
+            */
+                SELECT pg_get_indexdef(c2.oid), 2 AS rank
+                FROM pg_index x
+                JOIN pg_class c ON x.indrelid = c.oid
+                JOIN pg_class c2 ON x.indexrelid = c2.oid
+                JOIN pg_namespace n ON c.relnamespace = n.oid
+                LEFT JOIN pg_constraint con ON c2.relname = con.conname
+                    AND c2.relnamespace = con.connamespace
+                WHERE NOT x.indisprimary AND con.oid IS NULL AND ({0})
+            )
+            UNION
+            (
+            /*  this gets foreign keys defined on other tables that reference the
+                tables of interest and sets rank = 4
+            */
+                SELECT 'ALTER TABLE '||n2.nspname||'."'||c2.relname||'" ADD CONSTRAINT "'
+                    ||con.conname||'" '||pg_get_constraintdef(con.oid) AS statement,
+                    4 AS rank
+                FROM pg_constraint con
+                JOIN pg_class c ON con.confrelid = c.oid
+                JOIN pg_namespace n ON c.relnamespace = n.oid
+                JOIN pg_class c2 ON con.conrelid = c2.oid
+                JOIN pg_namespace n2 ON c2.relnamespace = n2.oid
+                WHERE con.contype = 'f' AND ({0}) AND NOT ({1}))
+            ORDER BY rank""".format(
+                " OR ".join(
+                    [
+                        f"(n.nspname = '{schema}' AND c.relname = '{table}')"
+                        for schema, table in table_list
+                    ]
+                ),
+                " OR ".join(
+                    [
+                        f"(n2.nspname = '{schema}' AND c2.relname = '{table}')"
+                        for schema, table in table_list
+                    ]
+                ),
+            )
+        )
+        return [r[0] for r in self.fetchall()]
+
+    def drop_table_constraints(
+        self, table_list: Iterable[str], dry_run: bool = False
+    ) -> None:
+        """
+        Takes a list of tables and finds all constraints defined on them, then
+        drops them.  Foreign key constraints are processed first because
+        attempting to drop a unique key on a column that is referenced in a
+        foreign key results in an error.
+
+        :param Iterable table_list: The list of tables to get constraints on
+        :param bool dry_run: Do a dry run, defaults to False
+        """
+        table_list = [split_schema_from_table(table) for table in table_list]
+        # order constraints to list foreign keys first for dropping
+        self.execute(
+            """WITH t AS (SELECT n.nspname, c.relname, con.conname, con.contype
+            FROM pg_constraint con
+            JOIN pg_class c ON con.conrelid = c.oid
+            JOIN pg_namespace n ON c.relnamespace = n.oid
+            WHERE {0}
+            UNION
+            SELECT n2.nspname, c2.relname, con.conname, con.contype
+            FROM pg_constraint con
+            JOIN pg_class c ON con.confrelid = c.oid
+            JOIN pg_namespace n ON c.relnamespace = n.oid
+            JOIN pg_class c2 ON con.conrelid = c2.oid
+            JOIN pg_namespace n2 ON c2.relnamespace = n2.oid
+            WHERE con.contype = 'f' AND ({0}))
+            SELECT nspname, relname, conname
+            FROM t
+            ORDER BY CASE WHEN contype = 'f' THEN 0 ELSE 1 END""".format(
+                " OR ".join(
+                    [
+                        f"(n.nspname = '{schema}' AND c.relname = '{table}')"
+                        for schema, table in table_list
+                    ]
+                )
+            )
+        )
+        constraints = self.fetchall()
+        for nspname, relname, conname in constraints:
+            self.execute(
+                f"ALTER TABLE {nspname}.{relname} DROP CONSTRAINT {conname}",
+                dry_run=dry_run,
+            )
+
+    def get_db_table_columns(self, table_name: str) -> list[str]:
+        """
+        Get the list of all non-generated column names for a PostgreSQL table.
+
+        :param str table_name: The possibly schema qualified table name
+        :return: The list of non-generated columns from the table, ordered by their
+            position in the database
+        :rtype: list
+        """
+        table, schema = split_schema_from_table(table_name)
+        self.execute(
+            """SELECT column_name
+            FROM information_schema.columns 
+            WHERE is_generated <> 'ALWAYS' AND table_name = %s AND table_schema = %s
+            ORDER BY ordinal_position""",
+            (table, schema),
+        )
+        return [row[0] for row in self.fetchall()]
+
+    def confirm_table_and_file_columns_match(
+        self,
+        table_fn: str,
+        table_name: str,
+        sep: str = ",",
+        sanitize: bool = False,
+        allow_columns_subset: bool = False,
+    ) -> list[str]:
+        """
+        Confirm that the field names in a table match those of a file.
+
+        :param str table_fn: The file name of the data source to check
+        :param str table_name: The name of the database table to check
+        :param str sep: The column separator to use, defaults to ","
+        :param bool sanitize: Whether to sanitize column names with
+            get_csv_fields(), defaults to False
+        :param bool allow_columns_subset: Whether to allow loading to the table with
+            only a subset of the columns, defaults to False
+        :raises ValueError: If file columns do not match database table columns
+        :return: The list of column names to load
+        :rtype: list
+        """
+        fields = get_csv_fields(table_fn, sep, sanitize)
+        db_table_columns = self.get_db_table_columns(table_name)
+        if set(fields) == set(db_table_columns):
+            logger.debug(f"{table_fn} and {table_name} fields match.")
+        elif allow_columns_subset and set(csv_fields) <= set(db_table_fields):
+            logger.debug(
+                f"{table_fn} and {table_name} fields do no match, but the file's "
+                "are a subset of database.  Continuing."
+            )
+        else:
+            fields = set(fields)
+            db_table_columns = set(db_columns)
+            extra = sorted(fields - db_table_columns)
+            missing = sorted(db_table_columns - fields)
+            extra_clause = f"\nExtra columns:\n{extra}" if extra else ""
+            missing_clause = f"\nMissing columns:\n{missing}" if missing else ""
+            raise ValueError(
+                f"{table_fn} and {table_name} do not match.\n"
+                f"Specification ({len(fields)} columns):\n{sorted(fields)}\n"
+                f"Database ({len(db_table_columns)}):\n{sorted(db_table_columns)}"
+                f"{extra_clause}{missing_clause}"
+            )
+        return fields
+
+    def import_table(
+        self,
+        table_fn: str,
+        table_name: str,
+        csv_format: bool = False,
+        sep: str = ",",
+        sanitize: bool = False,
+        truncate: bool = True,
+        header: bool = True,
+        quote: str = "'\"'",
+        escape: str = "'\"'",
+        allow_columns_subset: bool = False,
+        fields: Optional[Iterable[str]] = None,
+    ) -> None:
+        """
+        Load a PostgreSQL CSV or TEXT format file to the database
+
+        :param str table_fn: The file name of the data source to load
+        :param str table_name: The name of the database table to load to
+        :param csv_format: Whether to use CSV format (otherwise TEXT), defaults to
+            False
+        :param str sep: The column separator to use, defaults to ","
+        :param bool sanitize: Whether to sanitize column names with
+            get_csv_fields(), defaults to False
+        :param bool truncate: Whether to truncate the table before loading, defaults
+            to True
+        :param bool header: Whether the file has a header row, defaults to True
+        :param str quote: The quote character, defaults to "'\"'"
+        :param str escape: The escape character, defaults to "'\"'"
+        :param bool allow_columns_subset: Whether to allow loading to the table with
+            only a subset of the columns, defaults to False
+        :param fields: A list of fields for the file; this value is required if
+            there is no header, defaults to None
+        :type fields: list or None
+        :raises ValueError: If header and fields specified or if neither is
+            specified
+        """
+        if header == bool(fields):
+            raise ValueError("One of header or fields must be specified and not both.")
+        if header:
+            fields = self.confirm_table_and_file_columns_match(
+                table_fn,
+                table_name,
+                sep=sep if csv_format else "\t",
+                sanitize=sanitize,
+                allow_columns_subset=allow_columns_subset,
+            )
+        fields_string = '"{}"'.format('","'.join(fields))
+        statement = f"COPY {table_name} ({fields_string}) FROM STDIN"
+        if csv_format:
+            statement += f" CSV DELIMITER '{sep}' QUOTE {quote} ESCAPE {escape}"
+        if truncate:
+            self.execute(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
+        with zopen(table_fn, "rt") as table_fh:
+            if header:
+                next(table_fh)
+            self.copy_expert(statement, table_fh)
 
 
 class SavepointCursor(LoggingCursor):
@@ -386,425 +652,3 @@ def connect_to_db(
     db_args = get_db_args(service, db_args, logger)
     logger.debug(f"Connecting to DB with parameters: {db_args}.")
     return psycopg2.connect(**db_args)
-
-
-def split_schema_from_table(
-    table: str, default_schema: str = "public"
-) -> tuple[str, str]:
-    """
-    Split a possibly schema qualified table name into its schema and table names
-
-    :param str table: The possibly schema qualified table name
-    :param str schema: The default schema name, defaults to "public"
-    :return: A list with the schema name and the table name
-    :rtype: list
-    """
-    if "." in table:
-        return table.split(".", 1)
-    else:
-        return [schema, table]
-
-
-def get_table_constraint_statements(
-    cur: psycopg2.extensions.cursor, table_list: Iterable[str]
-) -> list[str]:
-    """
-    Takes a psycopg2 cursor and list of tables and returns a list of all the
-    SQL definitions of constraints defined on the tables.
-    The constraints are ordered by keys, then other constraints on the tables,
-    and lastly foreign keys defined on other tables that reference one of the
-    tables specified.
-    The purpose of this is to be able to drop these constraints, load data, and
-    recreate them for efficiency.
-
-    :param psycopg2.extensions.cursor cur: The psycopg2 cursor to use
-    :param Iterable table_list: The list of tables to get constraints on
-    :return: The list of constraints
-    :rtype: list
-    """
-    if not table_list:
-        return []
-    table_list = [split_schema_from_table(table) for table in table_list]
-    # order constraints to list keys first for efficiency
-    cur.execute(
-        """
-        (
-        /*  this gets constraints defined on the tables of interest a rank given by
-            primary key -> rank = 0,
-            unique -> rank = 1,
-            others (CHECK, FOREIGN KEY) -> rank = 3
-        */
-            SELECT 'ALTER TABLE '||n.nspname||'."'||c.relname||'" ADD CONSTRAINT "'
-                ||con.conname||'" '||pg_get_constraintdef(con.oid) AS statement,
-                CASE WHEN con.contype = 'p' THEN 0
-                     WHEN con.contype = 'u' THEN 1
-                     ELSE 3
-                END AS rank
-            FROM pg_constraint con
-            JOIN pg_class c ON con.conrelid = c.oid
-            JOIN pg_namespace n ON c.relnamespace = n.oid
-            WHERE {0})
-        UNION
-        (
-        /*  this gets non-primary key indexes (because the first subquery gets
-            them already) and sets rank = 2
-        */
-            SELECT pg_get_indexdef(c2.oid), 2 AS rank
-            FROM pg_index x
-            JOIN pg_class c ON x.indrelid = c.oid
-            JOIN pg_class c2 ON x.indexrelid = c2.oid
-            JOIN pg_namespace n ON c.relnamespace = n.oid
-            LEFT JOIN pg_constraint con ON c2.relname = con.conname
-                AND c2.relnamespace = con.connamespace
-            WHERE NOT x.indisprimary AND con.oid IS NULL AND ({0})
-        )
-        UNION
-        (
-        /*  this gets foreign keys defined on other tables that reference the
-            tables of interest and sets rank = 4
-        */
-            SELECT 'ALTER TABLE '||n2.nspname||'."'||c2.relname||'" ADD CONSTRAINT "'
-                ||con.conname||'" '||pg_get_constraintdef(con.oid) AS statement,
-                4 AS rank
-            FROM pg_constraint con
-            JOIN pg_class c ON con.confrelid = c.oid
-            JOIN pg_namespace n ON c.relnamespace = n.oid
-            JOIN pg_class c2 ON con.conrelid = c2.oid
-            JOIN pg_namespace n2 ON c2.relnamespace = n2.oid
-            WHERE con.contype = 'f' AND ({0}) AND NOT ({1}))
-        ORDER BY rank""".format(
-            " OR ".join(
-                [
-                    f"(n.nspname = '{schema}' AND c.relname = '{table}')"
-                    for schema, table in table_list
-                ]
-            ),
-            " OR ".join(
-                [
-                    f"(n2.nspname = '{schema}' AND c2.relname = '{table}')"
-                    for schema, table in table_list
-                ]
-            ),
-        )
-    )
-    return [r[0] for r in cur.fetchall()]
-
-
-def drop_table_constraints(
-    cur: psycopg2.extensions.cursor, table_list: Iterable[str], dry_run: bool = False
-) -> None:
-    """
-    Takes a psycopg2 cursor and list of tables and finds all constraints
-    defined on them, then drops them.  Foreign key constraints are processed
-    first because attempting to drop a unique key on a column that is referenced
-    in a foreign key results in an error.
-
-    :param psycopg2.extensions.cursor cur: The psycopg2 cursor to use
-    :param Iterable table_list: The list of tables to get constraints on
-    :param bool dry_run: Do a dry run, defaults to False
-    """
-    table_list = [split_schema_from_table(table) for table in table_list]
-    # order constraints to list foreign keys first for dropping
-    cur.execute(
-        """WITH t AS (SELECT n.nspname, c.relname, con.conname, con.contype
-        FROM pg_constraint con
-        JOIN pg_class c ON con.conrelid = c.oid
-        JOIN pg_namespace n ON c.relnamespace = n.oid
-        WHERE {0}
-        UNION
-        SELECT n2.nspname, c2.relname, con.conname, con.contype
-        FROM pg_constraint con
-        JOIN pg_class c ON con.confrelid = c.oid
-        JOIN pg_namespace n ON c.relnamespace = n.oid
-        JOIN pg_class c2 ON con.conrelid = c2.oid
-        JOIN pg_namespace n2 ON c2.relnamespace = n2.oid
-        WHERE con.contype = 'f' AND ({0}))
-        SELECT nspname, relname, conname
-        FROM t
-        ORDER BY CASE WHEN contype = 'f' THEN 0 ELSE 1 END""".format(
-            " OR ".join(
-                [
-                    f"(n.nspname = '{schema}' AND c.relname = '{table}')"
-                    for schema, table in table_list
-                ]
-            )
-        )
-    )
-    constraints = cur.fetchall()
-    for nspname, relname, conname in constraints:
-        cur.execute(
-            f"ALTER TABLE {nspname}.{relname} DROP CONSTRAINT {conname}",
-            dry_run=dry_run,
-        )
-
-
-def drop_table_keys(cur, table_list, dry_run=False):
-    if not table_list:
-        return
-    table_list = [split_schema_from_table(table) for table in table_list]
-    cur.execute(
-        """SELECT n.nspname, c.relname AS table_name, c2.relname AS index_name
-        FROM pg_index x
-        JOIN pg_class c ON x.indrelid = c.oid
-        JOIN pg_class c2 ON x.indexrelid = c2.oid
-        JOIN pg_namespace n ON c.relnamespace = n.oid
-        WHERE NOT x.indisprimary AND {}""".format(
-            " OR ".join(
-                [
-                    f"(n.nspname = '{schema}' AND c.relname = '{table}')"
-                    for schema, table in table_list
-                ]
-            )
-        )
-    )
-    indexes = cur.fetchall()
-    for nspname, table_name, index_name in indexes:
-        cur.execute(f"DROP INDEX {nspname}.{index_name}", dry_run=dry_run)
-
-
-def import_csv(
-    cur,
-    table_fn,
-    table_name,
-    sep=",",
-    sanitize=False,
-    truncate=True,
-    header=True,
-    delimiter="','",
-    quote="'\"'",
-    escape="'\"'",
-    allow_columns_subset=False,
-    recreate_table_constraints=False,
-    csv_fields=None,
-):
-    if truncate:
-        logger.info(f"Truncating table {table_name}.")
-        cur.execute(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
-    if header:
-        csv_fields = get_table_csv_fields(table_fn, sep, sanitize)
-        db_table_fields = get_db_table_columns(cur, table_name)
-        if set(csv_fields) == set(db_table_fields):
-            logger.debug("CSV and database fields match.")
-        elif allow_columns_subset and set(csv_fields) <= set(db_table_fields):
-            logger.debug(
-                "CSV and database fields do no match, but CSV's are a "
-                "subset of database.  Continuing."
-            )
-        else:
-            ncsv_fields = len(csv_fields)
-            ndb_table_fields = len(db_table_fields)
-            csv_fields.extend([""] * (ndb_table_fields - ncsv_fields))
-            db_table_fields.extend([""] * (ncsv_fields - ndb_table_fields))
-            raise ValueError(
-                f"Fields in {table_fn} and {table_name} do not match.\n"
-                f"#,{table_fn},{table_name},match\n"
-                "{}".format(
-                    "\n".join(
-                        [
-                            f"{x},{field1},{field2},{field1 == field2}"
-                            for x, (field1, field2) in enumerate(
-                                zip(csv_fields, db_table_fields)
-                            )
-                        ]
-                    )
-                )
-            )
-        header_clause = "HEADER"
-    else:
-        header_clause = ""
-    if recreate_table_constraints:
-        logger.debug("Temporarily dropping table constraints.")
-        constraints = get_table_constraint_statements(cur, [table_name])
-        drop_table_constraints(cur, table_list)
-        drop_table_keys(cur, table_list)
-    csv_fields_string = '"{}"'.format('","'.join(csv_fields))
-    statement = (
-        f"COPY {table_name} ({csv_fields_string}) FROM STDIN CSV {header_clause} DELIMITER "
-        f"{delimiter} QUOTE {quote} ESCAPE {escape}"
-    )
-    logger.debug(f"Executing {statement} with {table_fn}.")
-    open_func = gzip.open if table_fn.endswith(".gz") else open
-    with open_func(table_fn, "rt") as table_fh:
-        cur.copy_expert(statement, table_fh)
-    if recreate_table_constraints:
-        logger.debug("Adding table constraints back.")
-        for constraint in constraints:
-            cur.execute(constraint)
-
-
-def import_text(
-    cur,
-    table_fn,
-    table_name,
-    table_fields,
-    sep="\t",
-    sanitize=False,
-    truncate=True,
-    header=False,
-    allow_columns_subset=False,
-    recreate_table_constraints=False,
-):
-    if truncate:
-        logger.info(f"Truncating table {table_name}.")
-        cur.execute(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
-    if recreate_table_constraints:
-        logger.debug("Temporarily dropping table constraints.")
-        constraints = get_table_constraint_statements(cur, [table_name])
-        drop_table_constraints(cur, table_list)
-        drop_table_keys(cur, table_list)
-    table_fields_string = '"{}"'.format('","'.join(table_fields))
-    statement = f"COPY {table_name} ({table_fields_string}) FROM STDIN"
-    logger.debug(f"Executing {statement} with {table_fn}.")
-    open_func = gzip.open if table_fn.endswith(".gz") else open
-    with open_func(table_fn, "rt") as table_fh:
-        if header:
-            next(table_fh)
-        cur.copy_expert(statement, table_fh)
-    if recreate_table_constraints:
-        logger.debug("Adding table constraints back.")
-        for constraint in constraints:
-            cur.execute(constraint)
-
-
-def get_table_csv_fields(
-    table_fn, sep=",", sanitize=False, sanitize_with=((".", "_"), ("-", "_"))
-):
-    open_func = gzip.open if table_fn.endswith(".gz") else open
-    with open_func(table_fn, "rt") as fh:
-        fields = next(fh).rstrip("\n").split(sep)
-        if sanitize:
-            return [
-                reduce(lambda s, old_new: s.replace(*old_new), sanitize_with, field)
-                for field in fields
-            ]
-        else:
-            return fields
-
-
-
-def get_db_table_columns(cur: psycopg2.extensions.cursor, table_name: str) -> list[str]:
-    """
-    Get the list of all non-generated column names for a PostgreSQL table.
-
-    :param psycopg2.extensions.cursor cur: The psycopg2 cursor to use
-    :param str table_name: The possibly schema qualified table name
-    :return: The list of non-generated columns from the table, ordered by their
-        position in the database
-    :rtype: list
-    """
-    table, schema = split_schema_from_table(table_name)
-    cur.execute(
-        """SELECT column_name
-        FROM information_schema.columns 
-        WHERE is_generated <> 'ALWAYS' AND table_name = %s AND table_schema = %s
-        ORDER BY ordinal_position""",
-        (table, schema),
-    )
-    return [row[0] for row in cur.fetchall()]
-
-
-def confirm_table_and_file_columns_match(
-    cur: psycopg2.extensions.cursor,
-    table_fn: str,
-    table_name: str,
-    sep: str = ",",
-    sanitize: bool = False,
-    allow_columns_subset: bool = False,
-) -> list[str]:
-    """
-    :param psycopg2.extensions.cursor cur: The psycopg2 cursor to use
-    :param str table_fn: The file name of the data source to check
-    :param str table_name: The name of the database table to check
-    :param str sep: The column separator to use, defaults to ","
-    :param bool sanitize: Whether to sanitize column names with
-        get_csv_fields(), defaults to False
-    :param bool allow_columns_subset: Whether to allow loading to the table with
-        only a subset of the columns, defaults to False
-    :raises ValueError: If file columns do not match database table columns
-    :return: The list of column names to load
-    :rtype: list
-    """
-    fields = get_csv_fields(table_fn, sep, sanitize)
-    db_table_columns = get_db_table_columns(cur, table_name)
-    if set(fields) == set(db_table_columns):
-        logger.debug(f"{table_fn} and {table_name} fields match.")
-    elif allow_columns_subset and set(csv_fields) <= set(db_table_fields):
-        logger.debug(
-            f"{table_fn} and {table_name} fields do no match, but the file's "
-            "are a subset of database.  Continuing."
-        )
-    else:
-        fields = set(fields)
-        db_table_columns = set(db_columns)
-        extra = sorted(fields - db_table_columns)
-        missing = sorted(db_table_columns - fields)
-        extra_clause = f"\nExtra columns:\n{extra}" if extra else ""
-        missing_clause = f"\nMissing columns:\n{missing}" if missing else ""
-        raise ValueError(
-            f"{table_fn} and {table_name} do not match.\n"
-            f"Specification ({len(fields)} columns):\n{sorted(fields)}\n"
-            f"Database ({len(db_table_columns)}):\n{sorted(db_table_columns)}"
-            f"{extra_clause}{missing_clause}"
-        )
-    return fields
-
-
-def import_table(
-    cur: psycopg2.extensions.cursor,
-    table_fn: str,
-    table_name: str,
-    csv_format: bool = False,
-    sep: str = ",",
-    sanitize: bool = False,
-    truncate: bool = True,
-    header: bool = True,
-    quote: str = "'\"'",
-    escape: str = "'\"'",
-    allow_columns_subset: bool = False,
-    fields: Optional[Iterable[str]] = None,
-) -> None:
-    """
-    Load a PostgreSQL CSV or TEXT format file to the database
-
-    :param psycopg2.extensions.cursor: The psycopg2 cursor to use
-    :param str table_fn: The file name of the data source to load
-    :param str table_name: The name of the database table to load to
-    :param csv_format: Whether to use CSV format (otherwise TEXT), defaults to
-        False
-    :param str sep: The column separator to use, defaults to ","
-    :param bool sanitize: Whether to sanitize column names with
-        get_csv_fields(), defaults to False
-    :param bool truncate: Whether to truncate the table before loading, defaults
-        to True
-    :param bool header: Whether the file has a header row, defaults to True
-    :param str quote: The quote character, defaults to "'\"'"
-    :param str escape: The escape character, defaults to "'\"'"
-    :param bool allow_columns_subset: Whether to allow loading to the table with
-        only a subset of the columns, defaults to False
-    :param fields: A list of fields for the file; this value is required if
-        there is no header, defaults to None
-    :type fields: list or None
-    :raises ValueError: If header and fields specified or if neither is
-        specified
-    """
-    if header == bool(fields):
-        raise ValueError("One of header or fields must be specified and not both.")
-    if header:
-        fields = confirm_table_and_file_columns_match(
-            cur,
-            table_fn,
-            table_name,
-            sep=sep if csv_format else "\t",
-            sanitize=sanitize,
-            allow_columns_subset=allow_columns_subset,
-        )
-    fields_string = '"{}"'.format('","'.join(fields))
-    statement = f"COPY {table_name} ({fields_string}) FROM STDIN"
-    if csv_format:
-        statement += f" CSV DELIMITER '{sep}' QUOTE {quote} ESCAPE {escape}"
-    if truncate:
-        cur.execute(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
-    with zopen(table_fn, "rt") as table_fh:
-        if header:
-            next(table_fh)
-        cur.copy_expert(statement, table_fh)
