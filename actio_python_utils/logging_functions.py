@@ -56,6 +56,9 @@ def setup_logging(
     :type loggers_to_ignore: list or None
     """
     logger_to_configure = logging.getLogger(name)
+    if logger_to_configure.hasHandlers():
+        # don't add another handler if defined
+        return
     logger_to_configure.setLevel(logging_level)
     ch = logging.StreamHandler(stream)
     if stream_handler_logging_level is None:

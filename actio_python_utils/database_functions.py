@@ -327,6 +327,38 @@ class LoggingCursor(DictCursor):
                 dry_run=dry_run,
             )
 
+    def drop_table_keys(
+        self, table_list: Optional[Iterable[str]] = None, dry_run: bool = False
+    ) -> None:
+        """
+        Takes a list of tables and drops all indexes defined on them.
+
+        :param table_list: The list of tables to drop index on, defaults to None
+        :type table_list: Iterable or None
+        :param bool dry_run: Do a dry run, defaults to False
+        """
+        if not table_list:
+            return
+        table_list = [split_schema_from_table(table) for table in table_list]
+        self.execute(
+            """SELECT n.nspname, c.relname AS table_name, c2.relname AS index_name
+            FROM pg_index x
+            JOIN pg_class c ON x.indrelid = c.oid
+            JOIN pg_class c2 ON x.indexrelid = c2.oid
+            JOIN pg_namespace n ON c.relnamespace = n.oid
+            WHERE NOT x.indisprimary AND {}""".format(
+                " OR ".join(
+                    [
+                        f"(n.nspname = '{schema}' AND c.relname = '{table}')"
+                        for schema, table in table_list
+                    ]
+                )
+            )
+        )
+        indexes = self.fetchall()
+        for nspname, table_name, index_name in indexes:
+            self.execute(f"DROP INDEX {nspname}.{index_name}", dry_run=dry_run)
+
     def get_db_table_columns(self, table_name: str) -> list[str]:
         """
         Get the list of all non-generated column names for a PostgreSQL table.
@@ -340,7 +372,7 @@ class LoggingCursor(DictCursor):
         self.execute(
             """SELECT column_name
             FROM information_schema.columns 
-            WHERE is_generated <> 'ALWAYS' AND table_name = %s AND table_schema = %s
+            WHERE is_generated <> 'ALWAYS' AND table_schema = %s AND table_name = %s
             ORDER BY ordinal_position""",
             (table, schema),
         )

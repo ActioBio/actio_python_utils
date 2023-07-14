@@ -24,7 +24,8 @@ def setup_spark(
     use_excel: bool = False,
     use_glow: bool = False,
     use_xml: bool = False,
-    extra_options: Optional[Iterable[str]] = None,
+    show_console_progress: bool = True,
+    extra_options: Optional[Iterable[tuple[str, str]]] = None,
     extra_packages: Optional[Iterable[str]] = None,
     postgresql_jdbc: str = cfg["spark"]["jdbc"],
     excel_package: str = cfg["spark"]["packages"]["excel"],
@@ -49,6 +50,8 @@ def setup_spark(
         defaults to False
     :param bool use_xml: Configure PySpark to be able to parse XML files,
         defaults to False
+    :param bool show_console_progress: Configure PySpark to show console
+        progress, default to True
     :param extra_options: Any additional options to configure PySpark with,
         defaults to None
     :type extra_options: Iterable or None
@@ -74,6 +77,8 @@ def setup_spark(
     logging.getLogger("py4j").setLevel(spark_logging_level)
     logging.getLogger("pyspark").setLevel(spark_logging_level)
     spark = SparkSession.builder.config("spark.driver.memory", memory)
+    if not show_console_progress:
+        spark = spark.config("spark.ui.showConsolePorgress", "false")
     if extra_options:
         for option, value in extra_options:
             spark = spark.option(option, value)
@@ -263,7 +268,30 @@ SparkSession.load_excel_to_dataframe = load_excel_to_dataframe
 
 # for use with PySpark, casts string representations of human chromosomes to
 # integers
-convert_chromosome = F.udf(cast_chromosome_to_int, stypes.IntegerType())
+cast_chromosome = F.udf(cast_chromosome_to_int, stypes.IntegerType())
+
+
+def convert_chromosome(
+    self: DataFrame, current_column_name: str, new_column_name: Optional[str] = None
+) -> DataFrame:
+    """
+    Return a PySpark dataframe with current_column_name (containing human
+    chromosomes) with a new column, new_column_name (defaulting to overwriting
+    the original), with the chromosome cast as an integer.
+
+    :param DataFrame self: The dataframe to use
+    :param str current_column_name: The column name to cast
+    :param new_column_name: The new column name to use
+    :type new_column_name: str or None
+    :return: The processed dataframe
+    :rtype: DataFrame
+    """
+    if not new_column_name:
+        new_column_name = current_column_name
+    return self.withColumn(new_column_name, cast_chromosome(current_column_name))
+
+
+DataFrame.convert_chromosome = convert_chromosome
 
 
 def count_nulls(
@@ -402,7 +430,7 @@ def serialize_array_field(
     :param DataFrame self: The dataframe to use
     :param str column: The name of the column to serialize
     :param str new_column: The name to give the new serialized column
-    :param pyspark.sql.types.ArrayType: The column definition
+    :param pyspark.sql.types.ArrayType dtype: The column definition
     :param struct_columns_to_use: A set of struct values to use (assuming column
         is a struct), defaults to None
     :type struct_columns_to_use: Container or None
@@ -480,7 +508,7 @@ def serialize_array_field(
         # identity function should be sufficient
         func = lambda x: F.when(x.isNull(), "").otherwise(x)
     return self.withColumn(
-        tmp_column,
+        new_column,
         F.when(
             F.size(F.col(column)) > 0,
             F.concat(
@@ -542,6 +570,7 @@ def serialize_struct_field(
     self: DataFrame,
     column: str,
     new_column: str,
+    dtype: stypes.StructType,
     struct_columns_to_use: Optional[Container] = None,
 ) -> DataFrame:
     """
@@ -550,6 +579,7 @@ def serialize_struct_field(
     :param DataFrame self: The dataframe to use
     :param str column: The name of the column to serialize
     :param new_column: The name to give the new serialized column
+    :param pyspark.sql.types.StructType dtype: The column definition
     :param struct_columns_to_use: A set of struct values to use (assuming column
         is a struct), defaults to None
     :type struct_columns_to_use: Container or None
@@ -655,7 +685,7 @@ def serialize_field(
         drop = column
         tmp_column = f"{column}_tmp"
         new_column = column
-    dtype = dict(zip(df.schema.names, df.schema.fields))[column].dataType
+    dtype = dict(zip(self.schema.names, self.schema.fields))[column].dataType
     field_type = type(dtype)
     if field_type is stypes.ArrayType:
         df = self.serialize_array_field(
@@ -666,7 +696,7 @@ def serialize_field(
     elif field_type is stypes.StringType:
         df = self.serialize_string_field(column, tmp_column)
     elif field_type is stypes.StructType:
-        df = self.serialize_struct_field(column, tmp_column, struct_columns_to_use)
+        df = self.serialize_struct_field(column, tmp_column, dtype, struct_columns_to_use)
     else:
         # add more conversions here for other data types if needed
         df = self.withColumn(
