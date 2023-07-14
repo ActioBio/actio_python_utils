@@ -538,6 +538,150 @@ def drop_table_constraints(
         )
 
 
+def drop_table_keys(cur, table_list, dry_run=False):
+    if not table_list:
+        return
+    table_list = [split_schema_from_table(table) for table in table_list]
+    query(
+        """SELECT n.nspname, c.relname AS table_name, c2.relname AS index_name
+        FROM pg_index x
+        JOIN pg_class c ON x.indrelid = c.oid
+        JOIN pg_class c2 ON x.indexrelid = c2.oid
+        JOIN pg_namespace n ON c.relnamespace = n.oid
+        WHERE NOT x.indisprimary AND {}""".format(
+            " OR ".join(
+                [
+                    f"(n.nspname = '{schema}' AND c.relname = '{table}')"
+                    for schema, table in table_list
+                ]
+            )
+        )
+    )
+    indexes = cur.fetchall()
+    for nspname, table_name, index_name in indexes:
+        query(f"DROP INDEX {nspname}.{index_name}", dry_run=dry_run)
+
+
+def import_csv(
+    cur,
+    table_fn,
+    table_name,
+    sep=",",
+    sanitize=False,
+    truncate=True,
+    header=True,
+    delimiter="','",
+    quote="'\"'",
+    escape="'\"'",
+    allow_columns_subset=False,
+    recreate_table_constraints=False,
+    csv_fields=None,
+):
+    if truncate:
+        logger.info(f"Truncating table {table_name}.")
+        query(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
+    if header:
+        csv_fields = get_table_csv_fields(table_fn, sep, sanitize)
+        db_table_fields = get_db_table_columns(cur, table_name)
+        if set(csv_fields) == set(db_table_fields):
+            logger.debug("CSV and database fields match.")
+        elif allow_columns_subset and set(csv_fields) <= set(db_table_fields):
+            logger.debug(
+                "CSV and database fields do no match, but CSV's are a "
+                "subset of database.  Continuing."
+            )
+        else:
+            ncsv_fields = len(csv_fields)
+            ndb_table_fields = len(db_table_fields)
+            csv_fields.extend([""] * (ndb_table_fields - ncsv_fields))
+            db_table_fields.extend([""] * (ncsv_fields - ndb_table_fields))
+            raise ValueError(
+                f"Fields in {table_fn} and {table_name} do not match.\n"
+                f"#,{table_fn},{table_name},match\n"
+                "{}".format(
+                    "\n".join(
+                        [
+                            f"{x},{field1},{field2},{field1 == field2}"
+                            for x, (field1, field2) in enumerate(
+                                zip(csv_fields, db_table_fields)
+                            )
+                        ]
+                    )
+                )
+            )
+        header_clause = "HEADER"
+    else:
+        header_clause = ""
+    if recreate_table_constraints:
+        logger.debug("Temporarily dropping table constraints.")
+        constraints = get_table_constraint_statements(cur, [table_name])
+        drop_table_constraints(cur, table_list)
+        drop_table_keys(cur, table_list)
+    csv_fields_string = '"{}"'.format('","'.join(csv_fields))
+    statement = (
+        f"COPY {table_name} ({csv_fields_string}) FROM STDIN CSV {header_clause} DELIMITER "
+        f"{delimiter} QUOTE {quote} ESCAPE {escape}"
+    )
+    logger.debug(f"Executing {statement} with {table_fn}.")
+    open_func = gzip.open if table_fn.endswith(".gz") else open
+    with open_func(table_fn, "rt") as table_fh:
+        cur.copy_expert(statement, table_fh)
+    if recreate_table_constraints:
+        logger.debug("Adding table constraints back.")
+        for constraint in constraints:
+            query(constraint)
+
+
+def import_text(
+    cur,
+    table_fn,
+    table_name,
+    table_fields,
+    sep="\t",
+    sanitize=False,
+    truncate=True,
+    header=False,
+    allow_columns_subset=False,
+    recreate_table_constraints=False,
+):
+    if truncate:
+        logger.info(f"Truncating table {table_name}.")
+        query(f"TRUNCATE TABLE {table_name} RESTART IDENTITY")
+    if recreate_table_constraints:
+        logger.debug("Temporarily dropping table constraints.")
+        constraints = get_table_constraint_statements(cur, [table_name])
+        drop_table_constraints(cur, table_list)
+        drop_table_keys(cur, table_list)
+    table_fields_string = '"{}"'.format('","'.join(table_fields))
+    statement = f"COPY {table_name} ({table_fields_string}) FROM STDIN"
+    logger.debug(f"Executing {statement} with {table_fn}.")
+    open_func = gzip.open if table_fn.endswith(".gz") else open
+    with open_func(table_fn, "rt") as table_fh:
+        if header:
+            next(table_fh)
+        cur.copy_expert(statement, table_fh)
+    if recreate_table_constraints:
+        logger.debug("Adding table constraints back.")
+        for constraint in constraints:
+            query(constraint)
+
+
+def get_table_csv_fields(
+    table_fn, sep=",", sanitize=False, sanitize_with=((".", "_"), ("-", "_"))
+):
+    open_func = gzip.open if table_fn.endswith(".gz") else open
+    with open_func(table_fn, "rt") as fh:
+        fields = next(fh).rstrip("\n").split(sep)
+        if sanitize:
+            return [
+                reduce(lambda s, old_new: s.replace(*old_new), sanitize_with, field)
+                for field in fields
+            ]
+        else:
+            return fields
+
+
+
 def get_db_table_columns(cur: psycopg2.extensions.cursor, table_name: str) -> list[str]:
     """
     Get the list of all non-generated column names for a PostgreSQL table.
