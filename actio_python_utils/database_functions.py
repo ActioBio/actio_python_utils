@@ -117,8 +117,12 @@ def savepoint_wrapper(
     """
 
     @wraps(method)
-    def inner(obj, *args, dry_run=False, **kwargs):
-        cm = nullcontext() if dry_run else savepoint(super(type(obj), obj))
+    def inner(obj, *args, dry_run=False, dont_use_savepoint=False, **kwargs):
+        cm = (
+            nullcontext()
+            if (dry_run or dont_use_savepoint)
+            else savepoint(super(type(obj), obj))
+        )
         with cm:
             return method(obj, *args, **kwargs)
 
@@ -185,6 +189,7 @@ class LoggingCursor(DictCursor):
         vars: Iterable | Mapping = None,
         *args,
         dry_run: bool = False,
+        dont_use_savepoint:bool=False,
         **kwargs,
     ) -> None:
         """
@@ -195,6 +200,7 @@ class LoggingCursor(DictCursor):
         :type vars: Iterable or Mapping or None
         :param *args: Any positional arguments
         :param bool dry_run: Do a dry run, defaults to False
+        :param bool dont_use_savepoint: Ignored, defaults to False
         :param **kwargs: Any named arguments
         """
         self._log_statement(self.mogrify(query, vars).decode(), dry_run)
@@ -277,7 +283,8 @@ class LoggingCursor(DictCursor):
                         for schema, table in table_list
                     ]
                 ),
-            )
+            ),
+            dont_use_savepoint=True,
         )
         return [r[0] for r in self.fetchall()]
 
@@ -318,7 +325,8 @@ class LoggingCursor(DictCursor):
                         for schema, table in table_list
                     ]
                 )
-            )
+            ),
+            dont_use_savepoint=True,
         )
         constraints = self.fetchall()
         for nspname, relname, conname in constraints:
@@ -353,7 +361,8 @@ class LoggingCursor(DictCursor):
                         for schema, table in table_list
                     ]
                 )
-            )
+            ),
+            dont_use_savepoint=True,
         )
         indexes = self.fetchall()
         for nspname, table_name, index_name in indexes:
@@ -375,6 +384,7 @@ class LoggingCursor(DictCursor):
             WHERE is_generated <> 'ALWAYS' AND table_schema = %s AND table_name = %s
             ORDER BY ordinal_position""",
             (table, schema),
+            dont_use_savepoint=True,
         )
         return [row[0] for row in self.fetchall()]
 
@@ -503,6 +513,26 @@ class SavepointCursor(LoggingCursor):
     @savepoint_wrapper
     def execute(self, *args, **kwargs) -> None:
         super().execute(*args, **kwargs)
+
+    @savepoint_wrapper
+    def get_table_constraint_statements(self, *args, **kwargs) -> list[str]:
+        return super().get_table_constraint_statements(*args, **kwargs)
+
+    @savepoint_wrapper
+    def drop_table_constraints(self, *args, **kwargs) -> None:
+        super().drop_table_constraints(*args, **kwargs)
+
+    @savepoint_wrapper
+    def drop_table_keys(self, *args, **kwargs) -> None:
+        super().drop_table_keys(*args, **kwargs)
+
+    @savepoint_wrapper
+    def get_db_table_columns(self, *args, **kwargs) -> list[str]:
+        return super().get_db_table_columns(*args, **kwargs)
+
+    @savepoint_wrapper
+    def import_table(self, *args, **kwargs) -> None:
+        super().import_table(*args, **kwargs)
 
 
 def replace_dict_values_with_global_definition(
