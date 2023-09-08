@@ -5,6 +5,7 @@ import logging
 import pgtoolkit.pgpass
 import pyspark.sql
 from collections.abc import Callable, Container, Iterable, Mapping
+from functools import partial
 from pyspark.sql import functions as F
 from typing import Any, Optional
 from .database_functions import get_pg_config
