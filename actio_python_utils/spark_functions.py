@@ -89,9 +89,9 @@ def setup_spark(
         spark = spark.config("spark.jars.packages", excel_package)
     if use_glow:
         spark = spark.config(
-            "spark.jars.packages", "io.projectglow:glow-spark3_2.12:1.2.1"
+            "spark.jars.packages", glow_package
         ).config(
-            "spark.hadoop.io.compression.codecs", "io.projectglow.sql.util.BGZFCodec"
+            "spark.hadoop.io.compression.codecs", glow_codec
         )
     if use_xml:
         spark = spark.config("spark.jars.packages", xml_package)
