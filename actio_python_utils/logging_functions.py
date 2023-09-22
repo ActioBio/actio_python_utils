@@ -4,8 +4,68 @@ Logging-related functionality.
 import _io
 import logging
 from contextlib import contextmanager
-from typing import Optional
+from typing import Any, Optional
 from .utils import cfg
+
+
+class LazyLogger(logging.Logger):
+    """
+    Wraps a Logger to accept either a message or a function to evaluate to
+    produce the desired message.  If a function is provided it is evaluated
+    lazily, i.e. only if the logger is enabled for the appropriate level.
+    """
+
+    def _get_msg(self, msg_or_func: Any) -> Any:
+        """
+        Evaluates and returns msg_or_func() if it is callable, otherwise just
+        returns it
+
+        :param msg_or_func: Any
+        :return: The logging message or callable to evaluate
+        :rtype: Any
+        """
+        if callable(msg_or_func):
+            return msg_or_func()
+        else:
+            return msg_or_func
+
+    def debug(self, msg_or_func: Any, *args, **kwargs) -> None:
+        if self.isEnabledFor(logging.DEBUG):
+            super().debug(self._get_msg(msg_or_func), *args, **kwargs)
+
+    def info(self, msg_or_func: Any, *args, **kwargs) -> None:
+        if self.isEnabledFor(logging.INFO):
+            super().info(self._get_msg(msg_or_func), *args, **kwargs)
+
+    def warning(self, msg_or_func: Any, *args, **kwargs) -> None:
+        if self.isEnabledFor(logging.WARNING):
+            super().warning(self._get_msg(msg_or_func), *args, **kwargs)
+
+    def warn(self, msg_or_func: Any, *args, **kwargs) -> None:
+        if self.isEnabledFor(logging.WARNING):
+            super().warn(self._get_msg(msg_or_func), *args, **kwargs)
+
+    def error(self, msg_or_func: Any, *args, **kwargs) -> None:
+        if self.isEnabledFor(logging.ERROR):
+            super().error(self._get_msg(msg_or_func), *args, **kwargs)
+
+    def exception(self, msg_or_func: Any, *args, exc_info=True, **kwargs) -> None:
+        super().exception(
+            self._get_msg(msg_or_func), *args, exc_info=exc_info, **kwargs
+        )
+
+    def critical(self, msg_or_func: Any, *args, **kwargs) -> None:
+        if self.isEnabledFor(logging.CRITICAL):
+            super().critical(self._get_msg(msg_or_func), *args, **kwargs)
+
+    def fatal(self, msg_or_func: Any, *args, **kwargs) -> None:
+        if self.isEnabledFor(logging.CRITICAL):
+            super().fatal(self._get_msg(msg_or_func), *args, **kwargs)
+
+
+logging.setLoggerClass(
+    LazyLogger
+)  # enables new non-root loggers to use this functionality
 
 
 @contextmanager
