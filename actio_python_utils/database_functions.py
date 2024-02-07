@@ -12,7 +12,7 @@ from functools import wraps
 from psycopg2.extras import DictCursor
 from types import TracebackType
 from typing import Any, Optional
-from .utils import cfg, get_csv_fields, rename_dict_keys, zopen
+from .utils import cfg, CustomCSVDialect, get_csv_fields, rename_dict_keys, zopen
 
 logger = logging.getLogger(__name__)
 
@@ -183,13 +183,30 @@ class LoggingCursor(DictCursor):
         if not dry_run:
             super().copy_expert(sql, file, *args, **kwargs)
 
+    def copy_to_csv(self, sql: str, file: str, *args, dry_run=False, **kwargs) -> None:
+        """
+        Logs the sql statement and executes it if dry_run = False
+
+        :param str sql: The SQL statement to execute
+        :param str file: The path to the file to write to
+        :param *args: Any positional arguments
+        :param bool dry_run: Do a dry run, defaults to False
+        :param **kwargs: Any named arguments
+        """
+        sql = f"COPY ({sql}) TO STDOUT CSV HEADER"
+        self._log_statement(sql, dry_run)
+        if not dry_run:
+            self.logger.log(self.log_level, f"Writing query output to {file}.")
+            with zopen(file, "wt") as fh:
+                super().copy_expert(sql, fh)
+
     def execute(
         self,
         query: str,
         vars: Iterable | Mapping = None,
         *args,
         dry_run: bool = False,
-        dont_use_savepoint:bool=False,
+        dont_use_savepoint: bool = False,
         **kwargs,
     ) -> None:
         """
