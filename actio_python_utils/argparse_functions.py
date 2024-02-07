@@ -25,6 +25,12 @@ current_frame = inspect.currentframe()
 while current_frame.f_globals["__name__"] != "__main__":
     current_frame = current_frame.f_back
 
+class ZFileType(argparse.FileType):
+    def __call__(self, string):
+        if string == "-":
+            return super().__call__(string)
+        else:
+            return utils.zopen(string, self._mode)
 
 class CustomFormatter(
     argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpFormatter
