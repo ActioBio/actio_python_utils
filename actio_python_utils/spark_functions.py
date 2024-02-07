@@ -2,14 +2,19 @@
 Spark-related functionality.
 """
 import logging
+import os
 import pgtoolkit.pgpass
 import pyspark.sql
+import re
+import shutil
 from collections.abc import Callable, Container, Iterable, Mapping
 from functools import partial
+from glob import glob
 from pyspark.sql import functions as F
+from tempfile import TemporaryDirectory
 from typing import Any, Optional
 from .database_functions import get_pg_config
-from .utils import cast_chromosome_to_int, cfg
+from .utils import cast_chromosome_to_int, cfg, zopen
 
 DataFrame = pyspark.sql.dataframe.DataFrame
 Row = pyspark.sql.Row
@@ -223,9 +228,6 @@ def load_db_to_dataframe(
         load_func = load_func.option("dbtable", relation)
     else:
         load_func = load_func.option("query", query)
-    if extra_options:
-        for option, value in extra_options:
-            load_func = load_func.option(option, value)
     return load_func.load(**kwargs)
 
 
@@ -265,6 +267,79 @@ def load_excel_to_dataframe(
 
 
 SparkSession.load_excel_to_dataframe = load_excel_to_dataframe
+
+
+def split_dataframe_to_csv_by_column_value(
+    self: DataFrame,
+    column_to_split_on: str,
+    output_directory: str,
+    filename_format: str = "{column_value}",
+    include_header: bool = True,
+    overwrite: bool = True,
+) -> None:
+    """
+    Split a dataframe with PySpark to a set of gzipped CSVs, e.g. if a dataframe
+    has data:
+    col1,col2,col3
+    1,1,1
+    1,2,3
+    2,1,1
+
+    and we split on col1, we will produce two files, the first file containing
+    col1,col2,col3
+    1,1,1
+    1,2,3
+
+    and the second containing
+    col1,col2,col3
+    2,1,1
+
+    :param DataFrame self: The dataframe to use
+    :param str column_to_split_on: The column name to split on
+    :param str output_directory: The directory to output to
+    :param str filename_format: Filename convention to use; use {column_value} to
+        refer to the split column's value. Defaults to "{column_value}"
+    :param bool include_header: Whether to include a header in each output file,
+        defaults to True
+    :param bool overwrite: Overwrite existing directory it if already exists,
+        defaults to True
+    """
+    if include_header:
+        header = ",".join(self.columns) + "\n"
+    regex = re.compile(rf"^{column_to_split_on}=(.+)$")
+    if os.path.isdir(output_directory):
+        if overwrite:
+            shutil.rmtree(output_directory)
+    if not os.path.isdir(output_directory):
+        os.makedirs(output_directory)
+    with TemporaryDirectory() as d:
+        dir_name = os.path.join(d, "partitions")
+        self.write.partitionBy(column_to_split_on).csv(dir_name)
+        partitions = sorted(glob(f"{column_to_split_on}=*", root_dir=dir_name))
+        logger.info("Found the following partitions:\n" + "\n".join(partitions))
+        for partition in partitions:
+            column_value = regex.match(partition).group(1)
+            output_filename = os.path.join(
+                output_directory,
+                filename_format.format(column_value=column_value) + ".csv.gz",
+            )
+            logger.debug(
+                f"Writing split {column_to_split_on}={column_value} to {output_filename}."
+            )
+            with zopen(f"!gzip -9 > {output_filename}", "w") as out_fh:
+                if include_header:
+                    out_fh.write(header)
+                for in_fn in sorted(
+                    glob(os.path.join(dir_name, partition, "part-*.csv"))
+                ):
+                    with open(in_fn) as in_fh:
+                        for line in in_fh:
+                            out_fh.write(line)
+
+
+DataFrame.split_dataframe_to_csv_by_column_value = (
+    split_dataframe_to_csv_by_column_value
+)
 
 
 # for use with PySpark, casts string representations of human chromosomes to
@@ -697,7 +772,9 @@ def serialize_field(
     elif field_type is stypes.StringType:
         df = self.serialize_string_field(column, tmp_column)
     elif field_type is stypes.StructType:
-        df = self.serialize_struct_field(column, tmp_column, dtype, struct_columns_to_use)
+        df = self.serialize_struct_field(
+            column, tmp_column, dtype, struct_columns_to_use
+        )
     else:
         # add more conversions here for other data types if needed
         df = self.withColumn(
