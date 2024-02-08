@@ -552,3 +552,12 @@ def get_csv_fields(
         ]
     else:
         return fields
+
+def sync_to_s3(dir_name: str, s3_path: str) -> None:
+    """
+    Syncs a directory to specific S3 bucket/path.
+
+    :param str dir_name: The directory to sync
+    :param str s3_path: The S3 path to sync to
+    """
+    subprocess.run(["aws", "s3", "sync", dir_name, s3_path], check=True)
