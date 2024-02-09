@@ -93,9 +93,7 @@ def setup_spark(
     if use_excel:
         spark = spark.config("spark.jars.packages", excel_package)
     if use_glow:
-        spark = spark.config(
-            "spark.jars.packages", glow_package
-        ).config(
+        spark = spark.config("spark.jars.packages", glow_package).config(
             "spark.hadoop.io.compression.codecs", glow_codec
         )
     if use_xml:
@@ -276,6 +274,7 @@ def split_dataframe_to_csv_by_column_value(
     filename_format: str = "{column_value}",
     include_header: bool = True,
     overwrite: bool = True,
+    include_split_column_in_new_files: bool = False,
 ) -> None:
     """
     Split a dataframe with PySpark to a set of gzipped CSVs, e.g. if a dataframe
@@ -285,14 +284,14 @@ def split_dataframe_to_csv_by_column_value(
     1,2,3
     2,1,1
 
-    and we split on col1, we will produce two files, the first file containing
-    col1,col2,col3
-    1,1,1
-    1,2,3
+    and we split on col1, we will produce two files, the first file (col1=1) containing
+    col2,col3
+    1,1
+    2,3
 
-    and the second containing
-    col1,col2,col3
-    2,1,1
+    and the second (col1=2) containing
+    col2,col3
+    1,1
 
     :param DataFrame self: The dataframe to use
     :param str column_to_split_on: The column name to split on
@@ -303,9 +302,15 @@ def split_dataframe_to_csv_by_column_value(
         defaults to True
     :param bool overwrite: Overwrite existing directory it if already exists,
         defaults to True
+    :param bool include_split_column_in_new_files: Whether to include the column
+        that was used to split in the resulting files, defaults to False
     """
     if include_header:
-        header = ",".join(self.columns) + "\n"
+        cols = self.columns
+        cols.remove(column_to_split_on)
+        if include_split_column_in_new_files:
+            cols.insert(0, column_to_split_on)
+        header = ",".join(cols) + "\n"
     regex = re.compile(rf"^{column_to_split_on}=(.+)$")
     if os.path.isdir(output_directory):
         if overwrite:
@@ -334,6 +339,8 @@ def split_dataframe_to_csv_by_column_value(
                 ):
                     with open(in_fn) as in_fh:
                         for line in in_fh:
+                            if include_split_column_in_new_files:
+                                line = column_value + "," + line
                             out_fh.write(line)
 
 
