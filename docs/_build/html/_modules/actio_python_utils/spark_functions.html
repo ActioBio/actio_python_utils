@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>actio_python_utils.spark_functions &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b76e3c8a" />
+    <link rel="stylesheet" type="text/css" href="../../_static/nature.css?v=601dbdee" />
+    <script src="../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.spark_functions</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for actio_python_utils.spark_functions</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Spark-related functionality.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pgtoolkit.pgpass</span>
+<span class="kn">import</span> <span class="nn">pyspark.sql</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Container</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Mapping</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql</span> <span class="kn">import</span> <span class="n">functions</span> <span class="k">as</span> <span class="n">F</span>
+<span class="kn">from</span> <span class="nn">tempfile</span> <span class="kn">import</span> <span class="n">TemporaryDirectory</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">.database_functions</span> <span class="kn">import</span> <span class="n">get_pg_config</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">cast_chromosome_to_int</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">zopen</span>
+
+<span class="n">DataFrame</span> <span class="o">=</span> <span class="n">pyspark</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">dataframe</span><span class="o">.</span><span class="n">DataFrame</span>
+<span class="n">Row</span> <span class="o">=</span> <span class="n">pyspark</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">Row</span>
+<span class="n">SparkSession</span> <span class="o">=</span> <span class="n">pyspark</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">SparkSession</span>
+<span class="n">stypes</span> <span class="o">=</span> <span class="n">pyspark</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">types</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="setup_spark">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.setup_spark.html#actio_python_utils.spark_functions.setup_spark">[docs]</a>
+<span class="k">def</span> <span class="nf">setup_spark</span><span class="p">(</span>
+    <span class="n">cores</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;cores&quot;</span><span class="p">],</span>
+    <span class="n">memory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;memory&quot;</span><span class="p">],</span>
+    <span class="n">use_db</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">use_excel</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">use_glow</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">use_xml</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">show_console_progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">extra_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">extra_packages</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">postgresql_jdbc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;jdbc&quot;</span><span class="p">],</span>
+    <span class="n">excel_package</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;packages&quot;</span><span class="p">][</span><span class="s2">&quot;excel&quot;</span><span class="p">],</span>
+    <span class="n">glow_codec</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;codecs&quot;</span><span class="p">][</span><span class="s2">&quot;glow&quot;</span><span class="p">],</span>
+    <span class="n">glow_package</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;packages&quot;</span><span class="p">][</span><span class="s2">&quot;glow&quot;</span><span class="p">],</span>
+    <span class="n">xml_package</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;packages&quot;</span><span class="p">][</span><span class="s2">&quot;xml&quot;</span><span class="p">],</span>
+    <span class="n">spark_logging_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">ERROR</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparkSession</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Configures and creates a PySpark session according to the supplied arguments</span>
+
+<span class="sd">    :param cores: The number of cores to configure PySpark with</span>
+<span class="sd">    :param memory: The amount of memory to configure PySpark with</span>
+<span class="sd">    :param use_db: Configure PySpark to be able to query a database via JDBC</span>
+<span class="sd">    :param use_excel: Configure PySpark to be able to parse Excel</span>
+<span class="sd">        spreadsheets</span>
+<span class="sd">    :param use_glow: Configure PySpark to use glow (e.g. to parse a VCF)</span>
+<span class="sd">    :param use_xml: Configure PySpark to be able to parse XML files</span>
+<span class="sd">    :param show_console_progress: Configure PySpark to show console progress</span>
+<span class="sd">    :param extra_options: Any additional options to configure PySpark with</span>
+<span class="sd">    :param extra_packages: Any additional packages for PySpark to load</span>
+<span class="sd">    :param postgresql_jdbc: The path to the PostgreSQL JDBC jar for use if</span>
+<span class="sd">        use_db is specified</span>
+<span class="sd">    :param excel_package: The name of the package PySpark needs to parse</span>
+<span class="sd">        Excel spreadsheets</span>
+<span class="sd">    :param glow_codec: The name of the codec PySpark needs to load glow</span>
+<span class="sd">    :param glow_package: The name of the package PySpark needs to load glow</span>
+<span class="sd">    :param xml_package: The name of the package PySpark needs to parse XML files</span>
+<span class="sd">    :param spark_logging_level: The logging level to configure py4j and pyspark with</span>
+<span class="sd">    :return: The configured PySpark session</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;py4j&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">spark_logging_level</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;pyspark&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">spark_logging_level</span><span class="p">)</span>
+    <span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.driver.memory&quot;</span><span class="p">,</span> <span class="n">memory</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">show_console_progress</span><span class="p">:</span>
+        <span class="n">spark</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.ui.showConsolePorgress&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">extra_options</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">option</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">extra_options</span><span class="p">:</span>
+            <span class="n">spark</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="n">option</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_db</span><span class="p">:</span>
+        <span class="n">spark</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.jars&quot;</span><span class="p">,</span> <span class="n">postgresql_jdbc</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_excel</span><span class="p">:</span>
+        <span class="n">spark</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.jars.packages&quot;</span><span class="p">,</span> <span class="n">excel_package</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_glow</span><span class="p">:</span>
+        <span class="n">spark</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.jars.packages&quot;</span><span class="p">,</span> <span class="n">glow_package</span><span class="p">)</span><span class="o">.</span><span class="n">config</span><span class="p">(</span>
+            <span class="s2">&quot;spark.hadoop.io.compression.codecs&quot;</span><span class="p">,</span> <span class="n">glow_codec</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_xml</span><span class="p">:</span>
+        <span class="n">spark</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.jars.packages&quot;</span><span class="p">,</span> <span class="n">xml_package</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">extra_packages</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">extra_package</span> <span class="ow">in</span> <span class="n">extra_packages</span><span class="p">:</span>
+            <span class="n">spark</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="s2">&quot;spark.jars.packages&quot;</span><span class="p">,</span> <span class="n">extra_package</span><span class="p">)</span>
+    <span class="n">spark</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">master</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;local[</span><span class="si">{</span><span class="n">cores</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">getOrCreate</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">use_glow</span><span class="p">:</span>
+        <span class="c1"># glow can take a while to load so isn&#39;t done until it&#39;s actually requested</span>
+        <span class="kn">import</span> <span class="nn">glow</span>
+
+        <span class="n">spark</span> <span class="o">=</span> <span class="n">glow</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">spark</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">spark</span></div>
+
+
+
+<div class="viewcode-block" id="load_dataframe">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.load_dataframe.html#actio_python_utils.spark_functions.load_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">load_dataframe</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">SparkSession</span><span class="p">,</span>
+    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;parquet&quot;</span><span class="p">,</span>
+    <span class="n">load_config_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load and return the specified data source using PySpark</span>
+
+<span class="sd">    :param self: The PySpark session to use</span>
+<span class="sd">    :param path: The path to the data source to load</span>
+<span class="sd">    :param format: The format of the data source</span>
+<span class="sd">    :param load_config_options: Any additonal config options to load data</span>
+<span class="sd">    :params \**kwargs: Any additional named arguments</span>
+<span class="sd">    :return: The dataframe requested</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">load_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">format</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">load_config_options</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">option</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">load_config_options</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting </span><span class="si">{</span><span class="n">option</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="n">load_func</span> <span class="o">=</span> <span class="n">load_func</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="n">option</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> with format </span><span class="si">{</span><span class="nb">format</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">load_func</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<span class="n">SparkSession</span><span class="o">.</span><span class="n">load_dataframe</span> <span class="o">=</span> <span class="n">load_dataframe</span>
+
+
+<div class="viewcode-block" id="load_xml_to_dataframe">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.load_xml_to_dataframe.html#actio_python_utils.spark_functions.load_xml_to_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">load_xml_to_dataframe</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">SparkSession</span><span class="p">,</span>
+    <span class="n">xml_fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">row_tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">schema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">load_config_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load and return the specified XML file with PySpark</span>
+
+<span class="sd">    :param self: The PySpark session to use</span>
+<span class="sd">    :param xml_fn: The path to the data source to load</span>
+<span class="sd">    :param row_tag: The XML tag that delimits records</span>
+<span class="sd">    :param schema: The path to an optional XSD schema to validate records</span>
+<span class="sd">    :param load_config_options: Any additonal config options to load data</span>
+<span class="sd">    :param \**kwargs: Any additional named arguments</span>
+<span class="sd">    :return: The dataframe requested</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">load_config_options</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">load_config_options</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">load_config_options</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">&quot;rowTag&quot;</span><span class="p">,</span> <span class="n">row_tag</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">schema</span><span class="p">:</span>
+        <span class="n">load_config_options</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">&quot;rowValidationPath&quot;</span><span class="p">,</span> <span class="n">schema</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_dataframe</span><span class="p">(</span>
+        <span class="n">xml_fn</span><span class="p">,</span>
+        <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;xml&quot;</span><span class="p">,</span>
+        <span class="n">load_config_options</span><span class="o">=</span><span class="n">load_config_options</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">SparkSession</span><span class="o">.</span><span class="n">load_xml_to_dataframe</span> <span class="o">=</span> <span class="n">load_xml_to_dataframe</span>
+
+
+<div class="viewcode-block" id="load_db_to_dataframe">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.load_db_to_dataframe.html#actio_python_utils.spark_functions.load_db_to_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">load_db_to_dataframe</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">SparkSession</span><span class="p">,</span>
+    <span class="n">pgpass_record</span><span class="p">:</span> <span class="n">pgtoolkit</span><span class="o">.</span><span class="n">pgpass</span><span class="o">.</span><span class="n">PassEntry</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">relation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">query</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">load_config_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a PySpark dataframe from either a relation or query</span>
+
+<span class="sd">    :param self: The PySpark session to use</span>
+<span class="sd">    :param pgpass_record: PostgreSQL login credentials</span>
+<span class="sd">    :param relation: The database relation to load</span>
+<span class="sd">    :param query: The database query to load</span>
+<span class="sd">    :param load_config_options: Any additonal config options to load data</span>
+<span class="sd">    :param \**kwargs: Any additional named arguments</span>
+<span class="sd">    :return: The dataframe requested</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">relation</span> <span class="ow">is</span> <span class="kc">None</span> <span class="o">==</span> <span class="n">query</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Specify relation or query and not both.&quot;</span><span class="p">)</span>
+    <span class="n">load_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;jdbc&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pgpass_record</span><span class="p">:</span>
+        <span class="n">pgpass_record</span> <span class="o">=</span> <span class="n">get_pg_config</span><span class="p">()</span>
+    <span class="n">load_func</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">load_func</span><span class="o">.</span><span class="n">option</span><span class="p">(</span>
+            <span class="s2">&quot;url&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;jdbc:postgresql://</span><span class="si">{</span><span class="n">pgpass_record</span><span class="o">.</span><span class="n">hostname</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">pgpass_record</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">pgpass_record</span><span class="o">.</span><span class="n">database</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="n">pgpass_record</span><span class="o">.</span><span class="n">username</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">,</span> <span class="n">pgpass_record</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">&quot;driver&quot;</span><span class="p">,</span> <span class="s2">&quot;org.postgresql.Driver&quot;</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">relation</span><span class="p">:</span>
+        <span class="n">load_func</span> <span class="o">=</span> <span class="n">load_func</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">&quot;dbtable&quot;</span><span class="p">,</span> <span class="n">relation</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">load_func</span> <span class="o">=</span> <span class="n">load_func</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s2">&quot;query&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">load_func</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<span class="n">SparkSession</span><span class="o">.</span><span class="n">load_db_to_dataframe</span> <span class="o">=</span> <span class="n">load_db_to_dataframe</span>
+
+
+<div class="viewcode-block" id="load_excel_to_dataframe">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.load_excel_to_dataframe.html#actio_python_utils.spark_functions.load_excel_to_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">load_excel_to_dataframe</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">SparkSession</span><span class="p">,</span>
+    <span class="n">xl_fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">header</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">load_config_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load and return the specified Excel spreadsheet with PySpark</span>
+
+<span class="sd">    :param self: The PySpark session to use</span>
+<span class="sd">    :param xl_fn: The path to the data source to load</span>
+<span class="sd">    :param header: Whether the data source has a header or not</span>
+<span class="sd">    :param load_config_options: Any additonal config options to load data</span>
+<span class="sd">    :param \**kwargs: Any additional named arguments</span>
+<span class="sd">    :return: The dataframe requested</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">load_config_options</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">load_config_options</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">load_config_options</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">&quot;header&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span> <span class="k">if</span> <span class="n">header</span> <span class="k">else</span> <span class="s2">&quot;false&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_spark_dataframe</span><span class="p">(</span>
+        <span class="n">xl_fn</span><span class="p">,</span>
+        <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;com.crealytics.spark.excel&quot;</span><span class="p">,</span>
+        <span class="n">load_config_options</span><span class="o">=</span><span class="n">load_config_options</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">SparkSession</span><span class="o">.</span><span class="n">load_excel_to_dataframe</span> <span class="o">=</span> <span class="n">load_excel_to_dataframe</span>
+
+
+<div class="viewcode-block" id="split_dataframe_to_csv_by_column_value">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.split_dataframe_to_csv_by_column_value.html#actio_python_utils.spark_functions.split_dataframe_to_csv_by_column_value">[docs]</a>
+<span class="k">def</span> <span class="nf">split_dataframe_to_csv_by_column_value</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">column_to_split_on</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">output_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">filename_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{column_value}</span><span class="s2">&quot;</span><span class="p">,</span>
+    <span class="n">include_header</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_split_column_in_new_files</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Split a dataframe with PySpark to a set of gzipped CSVs, e.g. if a dataframe</span>
+<span class="sd">    has data:</span>
+<span class="sd">    col1,col2,col3</span>
+<span class="sd">    1,1,1</span>
+<span class="sd">    1,2,3</span>
+<span class="sd">    2,1,1</span>
+
+<span class="sd">    and we split on col1, we will produce two files, the first file (col1=1) containing</span>
+<span class="sd">    col2,col3</span>
+<span class="sd">    1,1</span>
+<span class="sd">    2,3</span>
+
+<span class="sd">    and the second (col1=2) containing</span>
+<span class="sd">    col2,col3</span>
+<span class="sd">    1,1</span>
+
+<span class="sd">    :param self: The dataframe to use</span>
+<span class="sd">    :param column_to_split_on: The column name to split on</span>
+<span class="sd">    :param output_directory: The directory to output to</span>
+<span class="sd">    :param filename_format: Filename convention to use; use ``{column_value}``</span>
+<span class="sd">        to refer to the split column&#39;s value</span>
+<span class="sd">    :param include_header: Whether to include a header in each output file</span>
+<span class="sd">    :param overwrite: Overwrite existing directory it if already exists</span>
+<span class="sd">    :param include_split_column_in_new_files: Whether to include the column</span>
+<span class="sd">        that was used to split in the resulting files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">include_header</span><span class="p">:</span>
+        <span class="n">cols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span>
+        <span class="n">cols</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">column_to_split_on</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">include_split_column_in_new_files</span><span class="p">:</span>
+            <span class="n">cols</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">column_to_split_on</span><span class="p">)</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cols</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">rf</span><span class="s2">&quot;^</span><span class="si">{</span><span class="n">column_to_split_on</span><span class="si">}</span><span class="s2">=(.+)$&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">output_directory</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">output_directory</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">output_directory</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_directory</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+        <span class="n">dir_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s2">&quot;partitions&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="o">.</span><span class="n">partitionBy</span><span class="p">(</span><span class="n">column_to_split_on</span><span class="p">)</span><span class="o">.</span><span class="n">csv</span><span class="p">(</span><span class="n">dir_name</span><span class="p">)</span>
+        <span class="n">partitions</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_to_split_on</span><span class="si">}</span><span class="s2">=*&quot;</span><span class="p">,</span> <span class="n">root_dir</span><span class="o">=</span><span class="n">dir_name</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found the following partitions:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">partitions</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">partition</span> <span class="ow">in</span> <span class="n">partitions</span><span class="p">:</span>
+            <span class="n">column_value</span> <span class="o">=</span> <span class="n">regex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">partition</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">output_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="n">output_directory</span><span class="p">,</span>
+                <span class="n">filename_format</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">column_value</span><span class="o">=</span><span class="n">column_value</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.csv.gz&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Writing split </span><span class="si">{</span><span class="n">column_to_split_on</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">column_value</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">output_filename</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+            <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;!gzip -9 &gt; </span><span class="si">{</span><span class="n">output_filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">out_fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">include_header</span><span class="p">:</span>
+                    <span class="n">out_fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">in_fn</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span>
+                    <span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dir_name</span><span class="p">,</span> <span class="n">partition</span><span class="p">,</span> <span class="s2">&quot;part-*.csv&quot;</span><span class="p">))</span>
+                <span class="p">):</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">in_fn</span><span class="p">)</span> <span class="k">as</span> <span class="n">in_fh</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">in_fh</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">include_split_column_in_new_files</span><span class="p">:</span>
+                                <span class="n">line</span> <span class="o">=</span> <span class="n">column_value</span> <span class="o">+</span> <span class="s2">&quot;,&quot;</span> <span class="o">+</span> <span class="n">line</span>
+                            <span class="n">out_fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">split_dataframe_to_csv_by_column_value</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">split_dataframe_to_csv_by_column_value</span>
+<span class="p">)</span>
+
+
+<span class="c1"># for use with PySpark, casts string representations of human chromosomes to</span>
+<span class="c1"># integers</span>
+<span class="n">cast_chromosome</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">udf</span><span class="p">(</span><span class="n">cast_chromosome_to_int</span><span class="p">,</span> <span class="n">stypes</span><span class="o">.</span><span class="n">IntegerType</span><span class="p">())</span>
+
+
+<div class="viewcode-block" id="convert_chromosome">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.convert_chromosome.html#actio_python_utils.spark_functions.convert_chromosome">[docs]</a>
+<span class="k">def</span> <span class="nf">convert_chromosome</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">current_column_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_column_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a PySpark dataframe with ``current_column_name`` (containing human</span>
+<span class="sd">    chromosomes) with a new column, ``new_column_name`` (defaulting to</span>
+<span class="sd">    overwriting the original), with the chromosome cast as an integer.</span>
+
+<span class="sd">    :param self: The dataframe to use</span>
+<span class="sd">    :param current_column_name: The column name to cast</span>
+<span class="sd">    :param new_column_name: The new column name to use</span>
+<span class="sd">    :return: The processed dataframe</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">new_column_name</span><span class="p">:</span>
+        <span class="n">new_column_name</span> <span class="o">=</span> <span class="n">current_column_name</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span><span class="n">new_column_name</span><span class="p">,</span> <span class="n">cast_chromosome</span><span class="p">(</span><span class="n">current_column_name</span><span class="p">))</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">convert_chromosome</span> <span class="o">=</span> <span class="n">convert_chromosome</span>
+
+
+<div class="viewcode-block" id="count_nulls">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.count_nulls.html#actio_python_utils.spark_functions.count_nulls">[docs]</a>
+<span class="k">def</span> <span class="nf">count_nulls</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a PySpark dataframe with the number of null values in each column of</span>
+<span class="sd">    a dataframe</span>
+
+<span class="sd">    :param self: The dataframe to summarize</span>
+<span class="sd">    :return: The new dataframe with null counts per column</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">F</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">isnull</span><span class="p">(</span><span class="n">col</span><span class="p">),</span> <span class="n">col</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">count_nulls</span> <span class="o">=</span> <span class="n">count_nulls</span>
+
+
+<div class="viewcode-block" id="count_columns_with_string">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.count_columns_with_string.html#actio_python_utils.spark_functions.count_columns_with_string">[docs]</a>
+<span class="k">def</span> <span class="nf">count_columns_with_string</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">string</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;|&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a PySpark dataframe with the number of times a given string occurs</span>
+<span class="sd">    in each string column in a dataframe</span>
+
+<span class="sd">    :param self: The dataframe to summarize</span>
+<span class="sd">    :param string: The string to search for</span>
+<span class="sd">    :return: The new dataframe with counts per column</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">dataType</span><span class="p">)</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StringType</span>
+        <span class="p">]</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">count_columns_with_string</span> <span class="o">=</span> <span class="n">count_columns_with_string</span>
+
+
+<div class="viewcode-block" id="count_distinct_values">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.count_distinct_values.html#actio_python_utils.spark_functions.count_distinct_values">[docs]</a>
+<span class="k">def</span> <span class="nf">count_distinct_values</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">columns_to_ignore</span><span class="p">:</span> <span class="n">Container</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(),</span>
+    <span class="n">approximate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a new PySpark dataframe with the number of distinct values in each</span>
+<span class="sd">    column.  Uses :func:`pyspark.sql.functions.count_distinct` by default and</span>
+<span class="sd">    :func:`pyspark.sql.functions.approx_count_distinct` if</span>
+<span class="sd">    ``approximate == True``</span>
+
+<span class="sd">    :param self: The dataframe to summarize</span>
+<span class="sd">    :param columns_to_ignore: An optional set of columns to not summarize</span>
+<span class="sd">    :param bool approximate: Get approximate counts instead of exact (faster)</span>
+<span class="sd">    :return: The new dataframe with counts of distinct values per column</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">func</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">approx_count_distinct</span> <span class="k">if</span> <span class="n">approximate</span> <span class="k">else</span> <span class="n">F</span><span class="o">.</span><span class="n">count_distinct</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span>
+        <span class="o">*</span><span class="p">[</span>
+            <span class="n">func</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">col</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">columns_to_ignore</span>
+        <span class="p">]</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">count_distinct_values</span> <span class="o">=</span> <span class="n">count_distinct_values</span>
+
+
+<div class="viewcode-block" id="convert_dicts_to_dataframe">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.convert_dicts_to_dataframe.html#actio_python_utils.spark_functions.convert_dicts_to_dataframe">[docs]</a>
+<span class="k">def</span> <span class="nf">convert_dicts_to_dataframe</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">SparkSession</span><span class="p">,</span>
+    <span class="n">dict_list</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">iter_func</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">coerce_to_lists_if_needed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts either a list of dicts (``dict_list``) or a function that returns</span>
+<span class="sd">    an iterator of dicts (``iter_func``) to a PySpark dataframe</span>
+
+<span class="sd">    :param self: The SparkSession to use</span>
+<span class="sd">    :param dict_list: A list of dicts representing rows</span>
+<span class="sd">    :param iter_func: A function that returns an iterator of dicts representing rows</span>
+<span class="sd">    :param coerce_to_lists_if_needed: For any column to create, check if any</span>
+<span class="sd">        value in a row is a list, and if so, convert any non-lists in the</span>
+<span class="sd">        column to a list</span>
+<span class="sd">    :return: A new dataframe built from the provided rows of dicts</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">dict_list</span> <span class="ow">and</span> <span class="n">iter_func</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only one of dict_list or iter_func should be specified.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">dict_list</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">iter_func</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;dict_list or iter_func must be specified.&quot;</span><span class="p">)</span>
+    <span class="n">all_fields</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">coerce_to_lists_if_needed</span><span class="p">:</span>
+        <span class="n">fields_with_lists</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">dict_list</span><span class="p">:</span>
+        <span class="n">iter_func</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="nb">iter</span><span class="p">,</span> <span class="n">dict_list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">iter_func</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">record</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">all_fields</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">coerce_to_lists_if_needed</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">list</span><span class="p">:</span>
+                <span class="n">fields_with_lists</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">iter_func</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">coerce_to_lists_if_needed</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields_with_lists</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">record</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">record</span><span class="p">[</span><span class="n">field</span><span class="p">])</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">list</span><span class="p">:</span>
+                    <span class="c1"># original data was inconsistent - some values are lists</span>
+                    <span class="c1"># and this one is not so we make this one a list also</span>
+                    <span class="n">record</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">record</span><span class="p">[</span><span class="n">field</span><span class="p">]]</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">all_fields</span> <span class="o">-</span> <span class="n">record</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">record</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">Row</span><span class="p">(</span><span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">items</span><span class="p">())))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">iter_func</span><span class="p">())</span></div>
+
+
+
+<span class="n">SparkSession</span><span class="o">.</span><span class="n">convert_dicts_to_dataframe</span> <span class="o">=</span> <span class="n">convert_dicts_to_dataframe</span>
+
+
+<div class="viewcode-block" id="serialize_array_field">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.serialize_array_field.html#actio_python_utils.spark_functions.serialize_array_field">[docs]</a>
+<span class="k">def</span> <span class="nf">serialize_array_field</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">new_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">dtype</span><span class="p">:</span> <span class="n">pyspark</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">,</span>
+    <span class="n">struct_columns_to_use</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Container</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Serializes a ``pyspark.sql.types.ArrayType`` field for output.</span>
+
+<span class="sd">    :param self: The dataframe to use</span>
+<span class="sd">    :param column: The name of the column to serialize</span>
+<span class="sd">    :param new_column: The name to give the new serialized column</span>
+<span class="sd">    :param dtype: The column definition</span>
+<span class="sd">    :param struct_columns_to_use: A set of struct values to use (assuming column</span>
+<span class="sd">        is a struct)</span>
+<span class="sd">    :raises NotImplementedError: If the type in the array is a nested struct</span>
+<span class="sd">    :return: A new dataframe with the serialized column</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">subtype</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">dtype</span><span class="o">.</span><span class="n">elementType</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">subtype</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StringType</span><span class="p">:</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">),</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span>
+                <span class="n">F</span><span class="o">.</span><span class="n">regexp_replace</span><span class="p">(</span>
+                    <span class="n">F</span><span class="o">.</span><span class="n">regexp_replace</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;</span><span class="se">\\\\</span><span class="s1">&quot;&#39;</span><span class="p">),</span> <span class="s2">&quot;([</span><span class="se">\t\r\n</span><span class="s2">])&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">$1&quot;</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">),</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">subtype</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StructType</span><span class="p">:</span>
+        <span class="c1"># will create a function to convert each element of the struct</span>
+        <span class="n">funcs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">struct_columns_to_use</span><span class="p">:</span>
+            <span class="n">use_all_subfields</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">subfields_to_use</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">struct_columns_to_use</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">use_all_subfields</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">struct_columns_to_use</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">subfield</span> <span class="ow">in</span> <span class="n">dtype</span><span class="o">.</span><span class="n">elementType</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">use_all_subfields</span> <span class="ow">or</span> <span class="n">subfield</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">subfields_to_use</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">use_all_subfields</span><span class="p">:</span>
+                    <span class="n">struct_columns_to_use</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subfield</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">subfield_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">subfield</span><span class="o">.</span><span class="n">dataType</span><span class="p">)</span>
+                <span class="n">subfield_name</span> <span class="o">=</span> <span class="n">subfield</span><span class="o">.</span><span class="n">name</span>
+                <span class="k">if</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StringType</span><span class="p">:</span>
+                    <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">subfield</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span>
+                        <span class="n">y</span><span class="p">[</span><span class="n">subfield</span><span class="p">]</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="s2">&quot;&quot;</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+                        <span class="n">F</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                            <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">),</span>
+                            <span class="n">F</span><span class="o">.</span><span class="n">regexp_replace</span><span class="p">(</span>
+                                <span class="n">F</span><span class="o">.</span><span class="n">regexp_replace</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">subfield</span><span class="p">],</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">),</span>
+                                <span class="s2">&quot;([</span><span class="se">\t\r\n</span><span class="s2">])&quot;</span><span class="p">,</span>
+                                <span class="sa">r</span><span class="s2">&quot;</span><span class="se">\\\\</span><span class="s2">$1&quot;</span><span class="p">,</span>
+                            <span class="p">),</span>
+                            <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StructType</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Nested struct </span><span class="si">{</span><span class="n">subfield_name</span><span class="si">}</span><span class="s2"> is not supported.&quot;</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Nested array in struct </span><span class="si">{</span><span class="n">subfield_name</span><span class="si">}</span><span class="s2"> is not supported.&quot;</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">BooleanType</span><span class="p">:</span>
+                    <span class="n">func</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">subfield</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">subfield</span><span class="p">]</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                        <span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">subfield</span><span class="p">]</span> <span class="o">==</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;t&quot;</span><span class="p">)</span>
+                        <span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="s2">&quot;f&quot;</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># should just be some type that doesn&#39;t need escaping</span>
+                    <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="n">subfield_name</span><span class="p">]</span>
+                <span class="n">funcs</span><span class="p">[</span><span class="n">subfield</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s1">&#39;&quot;(&#39;</span><span class="p">),</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">concat_ws</span><span class="p">(</span>
+                <span class="s2">&quot;,&quot;</span><span class="p">,</span>
+                <span class="o">*</span><span class="p">[</span><span class="n">funcs</span><span class="p">[</span><span class="n">subfield</span><span class="p">](</span><span class="n">x</span><span class="p">,</span> <span class="n">subfield</span><span class="p">)</span> <span class="k">for</span> <span class="n">subfield</span> <span class="ow">in</span> <span class="n">struct_columns_to_use</span><span class="p">],</span>
+            <span class="p">),</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s1">&#39;)&quot;&#39;</span><span class="p">),</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># identity function should be sufficient</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="n">new_column</span><span class="p">,</span>
+        <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">),</span>
+                <span class="n">F</span><span class="o">.</span><span class="n">array_join</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">),</span> <span class="n">func</span><span class="p">),</span> <span class="s2">&quot;,&quot;</span><span class="p">),</span>
+                <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\N&quot;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">serialize_array_field</span> <span class="o">=</span> <span class="n">serialize_array_field</span>
+
+
+<div class="viewcode-block" id="serialize_bool_field">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.serialize_bool_field.html#actio_python_utils.spark_functions.serialize_bool_field">[docs]</a>
+<span class="k">def</span> <span class="nf">serialize_bool_field</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Serializes a :class:`pyspark.sql.types.BooleanType` field for output.</span>
+
+<span class="sd">    :param self: The dataframe to use</span>
+<span class="sd">    :param column: The name of the column to serialize</span>
+<span class="sd">    :param new_column: The name to give the new serialized column</span>
+<span class="sd">    :return: A new dataframe with the serialized column</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="n">new_column</span><span class="p">,</span>
+        <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="sa">r</span><span class="s2">&quot;\N&quot;</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">)</span> <span class="o">==</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;t&quot;</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="s2">&quot;f&quot;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">serialize_bool_field</span> <span class="o">=</span> <span class="n">serialize_bool_field</span>
+
+
+<div class="viewcode-block" id="serialize_string_field">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.serialize_string_field.html#actio_python_utils.spark_functions.serialize_string_field">[docs]</a>
+<span class="k">def</span> <span class="nf">serialize_string_field</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Serializes a :class:`pyspark.sql.types.StringType` field for output.</span>
+
+<span class="sd">    :param self: The dataframe to use</span>
+<span class="sd">    :param column: The name of the column to serialize</span>
+<span class="sd">    :param new_column: The name to give the new serialized column</span>
+<span class="sd">    :return: A new dataframe with the serialized column</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># escape \t, \n, and \r</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="n">new_column</span><span class="p">,</span>
+        <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="sa">r</span><span class="s2">&quot;\N&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">regexp_replace</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="s2">&quot;([</span><span class="se">\t\r\n</span><span class="s2">])&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">$1&quot;</span><span class="p">))</span>
+        <span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">serialize_string_field</span> <span class="o">=</span> <span class="n">serialize_string_field</span>
+
+
+<div class="viewcode-block" id="serialize_struct_field">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.serialize_struct_field.html#actio_python_utils.spark_functions.serialize_struct_field">[docs]</a>
+<span class="k">def</span> <span class="nf">serialize_struct_field</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">new_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">dtype</span><span class="p">:</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StructType</span><span class="p">,</span>
+    <span class="n">struct_columns_to_use</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Container</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Serializes a :class:`pyspark.sql.types.StructType` field for output.</span>
+
+<span class="sd">    :param self: The dataframe to use</span>
+<span class="sd">    :param column: The name of the column to serialize</span>
+<span class="sd">    :param new_column: The name to give the new serialized column</span>
+<span class="sd">    :param dtype: The column definition</span>
+<span class="sd">    :param struct_columns_to_use: A set of struct values to use (assuming column</span>
+<span class="sd">        is a struct)</span>
+<span class="sd">    :raises NotImplementedError: If the type in the array is an array or struct</span>
+<span class="sd">    :return: A new dataframe with the serialized column</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># will create a function to convert each element of the struct</span>
+    <span class="n">funcs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">struct_columns_to_use</span><span class="p">:</span>
+        <span class="n">use_all_subfields</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">subfields_to_use</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">struct_columns_to_use</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">use_all_subfields</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">struct_columns_to_use</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">subfield</span> <span class="ow">in</span> <span class="n">dtype</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">use_all_subfields</span> <span class="ow">or</span> <span class="n">subfield</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">subfields_to_use</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">use_all_subfields</span><span class="p">:</span>
+                <span class="n">struct_columns_to_use</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subfield</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">subfield_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">subfield</span><span class="o">.</span><span class="n">dataType</span><span class="p">)</span>
+            <span class="n">subfield_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">subfield</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">if</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StringType</span><span class="p">:</span>
+                <span class="n">func</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">subfield_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="s2">&quot;NULL&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+                    <span class="n">F</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                        <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">),</span>
+                        <span class="n">F</span><span class="o">.</span><span class="n">regexp_replace</span><span class="p">(</span>
+                            <span class="n">F</span><span class="o">.</span><span class="n">regexp_replace</span><span class="p">(</span><span class="n">subfield_name</span><span class="p">,</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">),</span>
+                            <span class="s2">&quot;([</span><span class="se">\t\r\n</span><span class="s2">])&quot;</span><span class="p">,</span>
+                            <span class="sa">r</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">$1&quot;</span><span class="p">,</span>
+                        <span class="p">),</span>
+                        <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Nested array in struct </span><span class="si">{</span><span class="n">subfield_name</span><span class="si">}</span><span class="s2"> is not supported.&quot;</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StructType</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Nested struct </span><span class="si">{</span><span class="n">subfield_name</span><span class="si">}</span><span class="s2"> is not supported.&quot;</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">BooleanType</span><span class="p">:</span>
+                <span class="n">func</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">subfield_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="s2">&quot;NULL&quot;</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">subfield_name</span><span class="p">)</span> <span class="o">==</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;t&quot;</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="s2">&quot;f&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># should just be some type that doesn&#39;t need escaping</span>
+                <span class="n">func</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">subfield_name</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="s2">&quot;NULL&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+                    <span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">subfield_name</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">subfield_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StringType</span><span class="p">:</span>
+                    <span class="n">func</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+            <span class="n">funcs</span><span class="p">[</span><span class="n">subfield</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+        <span class="n">new_column</span><span class="p">,</span>
+        <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="sa">r</span><span class="s2">&quot;\N&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">),</span>
+                <span class="n">F</span><span class="o">.</span><span class="n">concat_ws</span><span class="p">(</span>
+                    <span class="s2">&quot;,&quot;</span><span class="p">,</span> <span class="o">*</span><span class="p">[</span><span class="n">funcs</span><span class="p">[</span><span class="n">subfield</span><span class="p">]</span> <span class="k">for</span> <span class="n">subfield</span> <span class="ow">in</span> <span class="n">struct_columns_to_use</span><span class="p">]</span>
+                <span class="p">),</span>
+                <span class="n">F</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s2">&quot;)&quot;</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">serialize_struct_field</span> <span class="o">=</span> <span class="n">serialize_struct_field</span>
+
+
+<div class="viewcode-block" id="serialize_field">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.spark_functions.serialize_field.html#actio_python_utils.spark_functions.serialize_field">[docs]</a>
+<span class="k">def</span> <span class="nf">serialize_field</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">new_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">struct_columns_to_use</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Container</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Operates on a PySpark dataframe and converts any field of either atoms or</span>
+<span class="sd">    structs, or any array of either of those (but not nested) to the properly</span>
+<span class="sd">    formatted string for postgresql TEXT loading format and assigns it the</span>
+<span class="sd">    column name new_column.</span>
+<span class="sd">    If ``new_column`` is not specified, the original column will be overwritten.</span>
+<span class="sd">    N.B. All string types should be :class:`pyspark.sql.types.StringType` as</span>
+<span class="sd">    opposed to :class:`pyspark.sql.typesCharType` or</span>
+<span class="sd">    :class:`pyspark.sql.types.VarcharType`.</span>
+
+<span class="sd">    :param self: The dataframe to use</span>
+<span class="sd">    :param column: The name of the column to serialize</span>
+<span class="sd">    :param new_column: The name to give the new serialized column</span>
+<span class="sd">    :param struct_columns_to_use: A set of struct values to use (assuming column</span>
+<span class="sd">        is a struct)</span>
+<span class="sd">    :return: A new dataframe replacing original column with a serialized one</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">new_column</span><span class="p">:</span>
+        <span class="n">drop</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">tmp_column</span> <span class="o">=</span> <span class="n">new_column</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">drop</span> <span class="o">=</span> <span class="n">column</span>
+        <span class="n">tmp_column</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2">_tmp&quot;</span>
+        <span class="n">new_column</span> <span class="o">=</span> <span class="n">column</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">fields</span><span class="p">))[</span><span class="n">column</span><span class="p">]</span><span class="o">.</span><span class="n">dataType</span>
+    <span class="n">field_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">field_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">ArrayType</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">serialize_array_field</span><span class="p">(</span>
+            <span class="n">column</span><span class="p">,</span> <span class="n">tmp_column</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">struct_columns_to_use</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">field_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">BooleanType</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">serialize_bool_field</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">tmp_column</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">field_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StringType</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">serialize_string_field</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">tmp_column</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">field_type</span> <span class="ow">is</span> <span class="n">stypes</span><span class="o">.</span><span class="n">StructType</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">serialize_struct_field</span><span class="p">(</span>
+            <span class="n">column</span><span class="p">,</span> <span class="n">tmp_column</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">struct_columns_to_use</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># add more conversions here for other data types if needed</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">withColumn</span><span class="p">(</span>
+            <span class="n">tmp_column</span><span class="p">,</span> <span class="n">F</span><span class="o">.</span><span class="n">when</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">isNull</span><span class="p">(),</span> <span class="sa">r</span><span class="s2">&quot;\N&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">otherwise</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">column</span><span class="p">))</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">drop</span><span class="p">)</span><span class="o">.</span><span class="n">withColumnRenamed</span><span class="p">(</span><span class="n">tmp_column</span><span class="p">,</span> <span class="n">new_column</span><span class="p">)</span></div>
+
+
+
+<span class="n">DataFrame</span><span class="o">.</span><span class="n">serialize_field</span> <span class="o">=</span> <span class="n">serialize_field</span>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../history.html">History</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.spark_functions</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>

@@ -1,6 +1,7 @@
 """
 Database-related functionality.
 """
+
 import logging
 import os
 import pgtoolkit.pgpass
@@ -23,18 +24,14 @@ def get_pg_config(
     pgpass_fn: str = os.path.join(os.path.expanduser("~"), ".pgpass"),
 ) -> pgtoolkit.pgpass.PassEntry:
     """
-    Locates the PostgreSQL login credentials given a service name
-    Uses service = $PGSERVICE or cfg["db"]["service"] if not specified.
+    Locates the PostgreSQL login credentials given a service name.
+    Uses ``service = $PGSERVICE`` or ``cfg["db"]["service"]`` if not specified.
 
-    :param service: The PostgreSQL service name to get, defaults to
-    :type service: str or None
+    :param service: The PostgreSQL service name to get
     :param service_fn: The path to the file containing service definitions.
-        Will use pgtoolkit.service.find() if not specified, defaults to None
-    :type service_fn: str or None
-    :param str pgpass_fn: The path to the file containing database login data,
-        defaults to os.path.join(os.path.expanduser("~"), ".pgpass")
+        Will use :func:`pgtoolkit.service.find` if not specified
+    :param pgpass_fn: The path to the file containing database login data
     :return: The database login credentials corresponding to the given service
-    :rtype: pgtoolkit.pgpass.PassEntry
     """
     if not service_fn:
         service_fn = pgtoolkit.service.find()
@@ -74,10 +71,9 @@ def split_schema_from_table(
     """
     Split a possibly schema qualified table name into its schema and table names
 
-    :param str table: The possibly schema qualified table name
-    :param str default_schema: The default schema name, defaults to "public"
+    :param table: The possibly schema qualified table name
+    :param default_schema: The default schema name
     :return: A list with the schema name and the table name
-    :rtype: list
     """
     if "." in table:
         return table.split(".", 1)
@@ -91,9 +87,8 @@ def savepoint(cur: psycopg2.extensions.cursor, savepoint: str = "savepoint") -> 
     Creates a context manager to create a savepoint upon entering, rollback if
     an error occurs, and release upon exiting
 
-    :param psycopg2.extensions.cursor cur: The psycopg2 cursor query to use
-    :param str savepoint: The name to give to the savepoint, defaults to
-        "savepoint"
+    :param cur: The psycopg2 cursor query to use
+    :param savepoint: The name to give to the savepoint
     """
     cur.execute(f"SAVEPOINT {savepoint}")
     try:
@@ -111,9 +106,8 @@ def savepoint_wrapper(
     """
     Wraps a psycopg2 cursor's method to use a savepoint
 
-    :param Callable method: The method to wrap
+    :param method: The method to wrap
     :return: The wrapped method
-    :rtype: Callable
     """
 
     @wraps(method)
@@ -130,17 +124,14 @@ def savepoint_wrapper(
 
 
 class LoggingCursor(DictCursor):
-    """
-    Wraps a DictCursor such that each copy_expert and execute statement is
-    logged
+    r"""
+    Wraps :class:`psycopg2.extras.DictCursor` such that each copy_expert and
+    execute statement is logged
 
-    :param *args: Any positional arguments to pass to the DictCursor constructor
-    :param log_level: The logging level to use, defaults to
-        cfg["logging"]["level"]
-    :type log_level: int or str
-    :param str log_name: The name to give the logger, defaults to
-        cfg["logging"]["names"]["db"]
-    :param **kwargs: Any named arguments to pass to the DictCursor constructor
+    :param \*args: Any positional arguments to pass to the DictCursor constructor
+    :param log_level: The logging level to use
+    :param log_name: The name to give the logger
+    :param \**kwargs: Any named arguments to pass to the DictCursor constructor
     """
 
     def __init__(
@@ -161,8 +152,8 @@ class LoggingCursor(DictCursor):
         Log the given statement with a prefix pertaining to whether it's a dry
         run or not
 
-        :param str statement: The SQL statement to log
-        :param bool dry_run: Do a dry run, defaults to False
+        :param statement: The SQL statement to log
+        :param dry_run: Do a dry run
         """
         if dry_run:
             self.logger.log(self.log_level, "Would execute statement:\n" + statement)
@@ -170,28 +161,28 @@ class LoggingCursor(DictCursor):
             self.logger.log(self.log_level, "Executing statement:\n" + statement)
 
     def copy_expert(self, sql: str, file: str, *args, dry_run=False, **kwargs) -> None:
-        """
-        Logs the sql statement and executes it if dry_run = False
+        r"""
+        Logs the sql statement and executes it if ``dry_run = False``
 
-        :param str sql: The SQL statement to execute
-        :param str file: The path to the file to import
-        :param *args: Any positional arguments
-        :param bool dry_run: Do a dry run, defaults to False
-        :param **kwargs: Any named arguments
+        :param sql: The SQL statement to execute
+        :param file: The path to the file to import
+        :param \*args: Any positional arguments
+        :param dry_run: Do a dry run
+        :param \**kwargs: Any named arguments
         """
         self._log_statement(sql, dry_run)
         if not dry_run:
             super().copy_expert(sql, file, *args, **kwargs)
 
     def copy_to_csv(self, sql: str, file: str, *args, dry_run=False, **kwargs) -> None:
-        """
-        Logs the sql statement and executes it if dry_run = False
+        r"""
+        Logs the sql statement and executes it if ``dry_run = False``
 
-        :param str sql: The SQL statement to execute
-        :param str file: The path to the file to write to
-        :param *args: Any positional arguments
-        :param bool dry_run: Do a dry run, defaults to False
-        :param **kwargs: Any named arguments
+        :param sql: The SQL statement to execute
+        :param file: The path to the file to write to
+        :param \*args: Any positional arguments
+        :param dry_run: Do a dry run
+        :param \**kwargs: Any named arguments
         """
         sql = f"COPY ({sql}) TO STDOUT CSV HEADER"
         self._log_statement(sql, dry_run)
@@ -209,16 +200,15 @@ class LoggingCursor(DictCursor):
         dont_use_savepoint: bool = False,
         **kwargs,
     ) -> None:
-        """
-        Logs the query and executes it if dry_run = False
+        r"""
+        Logs the query and executes it if ``dry_run = False``
 
-        :param str query: The SQL query to execute
-        :param vars: Variables to bind to the query, defaults to None
-        :type vars: Iterable or Mapping or None
-        :param *args: Any positional arguments
-        :param bool dry_run: Do a dry run, defaults to False
-        :param bool dont_use_savepoint: Ignored, defaults to False
-        :param **kwargs: Any named arguments
+        :param query: The SQL query to execute
+        :param vars: Variables to bind to the query
+        :param \*args: Any positional arguments
+        :param dry_run: Do a dry run
+        :param dont_use_savepoint: Ignored
+        :param \**kwargs: Any named arguments
         """
         self._log_statement(self.mogrify(query, vars).decode(), dry_run)
         if not dry_run:
@@ -233,9 +223,8 @@ class LoggingCursor(DictCursor):
         The purpose of this is to be able to drop these constraints, load data, and
         recreate them for efficiency.
 
-        :param Iterable table_list: The list of tables to get constraints on
+        :param table_list: The list of tables to get constraints on
         :return: The list of constraints
-        :rtype: list
         """
         if not table_list:
             return []
@@ -314,8 +303,8 @@ class LoggingCursor(DictCursor):
         attempting to drop a unique key on a column that is referenced in a
         foreign key results in an error.
 
-        :param Iterable table_list: The list of tables to get constraints on
-        :param bool dry_run: Do a dry run, defaults to False
+        :param table_list: The list of tables to get constraints on
+        :param dry_run: Do a dry run
         """
         table_list = [split_schema_from_table(table) for table in table_list]
         # order constraints to list foreign keys first for dropping
@@ -358,9 +347,8 @@ class LoggingCursor(DictCursor):
         """
         Takes a list of tables and drops all indexes defined on them.
 
-        :param table_list: The list of tables to drop index on, defaults to None
-        :type table_list: Iterable or None
-        :param bool dry_run: Do a dry run, defaults to False
+        :param table_list: The list of tables to drop index on
+        :param dry_run: Do a dry run
         """
         if not table_list:
             return
@@ -389,10 +377,9 @@ class LoggingCursor(DictCursor):
         """
         Get the list of all non-generated column names for a PostgreSQL table.
 
-        :param str table_name: The possibly schema qualified table name
+        :param table_name: The possibly schema qualified table name
         :return: The list of non-generated columns from the table, ordered by their
             position in the database
-        :rtype: list
         """
         table, schema = split_schema_from_table(table_name)
         self.execute(
@@ -416,16 +403,15 @@ class LoggingCursor(DictCursor):
         """
         Confirm that the field names in a table match those of a file.
 
-        :param str table_fn: The file name of the data source to check
-        :param str table_name: The name of the database table to check
-        :param str sep: The column separator to use, defaults to ","
-        :param bool sanitize: Whether to sanitize column names with
-            get_csv_fields(), defaults to False
-        :param bool allow_columns_subset: Whether to allow loading to the table with
-            only a subset of the columns, defaults to False
+        :param table_fn: The file name of the data source to check
+        :param table_name: The name of the database table to check
+        :param sep: The column separator to use
+        :param sanitize: Whether to sanitize column names with
+            :func:`~actio_python_utils.utils.get_csv_fields`
+        :param allow_columns_subset: Whether to allow loading to the table with
+            only a subset of the columns
         :raises ValueError: If file columns do not match database table columns
         :return: The list of column names to load
-        :rtype: list
         """
         fields = get_csv_fields(table_fn, sep, sanitize)
         db_table_columns = self.get_db_table_columns(table_name)
@@ -468,23 +454,20 @@ class LoggingCursor(DictCursor):
         """
         Load a PostgreSQL CSV or TEXT format file to the database
 
-        :param str table_fn: The file name of the data source to load
-        :param str table_name: The name of the database table to load to
-        :param csv_format: Whether to use CSV format (otherwise TEXT), defaults to
-            False
-        :param str sep: The column separator to use, defaults to ","
-        :param bool sanitize: Whether to sanitize column names with
-            get_csv_fields(), defaults to False
-        :param bool truncate: Whether to truncate the table before loading, defaults
-            to True
-        :param bool header: Whether the file has a header row, defaults to True
-        :param str quote: The quote character, defaults to "'\"'"
-        :param str escape: The escape character, defaults to "'\"'"
-        :param bool allow_columns_subset: Whether to allow loading to the table with
-            only a subset of the columns, defaults to False
+        :param table_fn: The file name of the data source to load
+        :param table_name: The name of the database table to load to
+        :param csv_format: Whether to use CSV format (otherwise TEXT)
+        :param sep: The column separator to use
+        :param sanitize: Whether to sanitize column names with
+            :func:`~actio_python_utils.utils.get_csv_fields`
+        :param truncate: Whether to truncate the table before loading
+        :param header: Whether the file has a header row
+        :param quote: The quote character
+        :param escape: The escape character
+        :param allow_columns_subset: Whether to allow loading to the table with
+            only a subset of the columns
         :param fields: A list of fields for the file; this value is required if
-            there is no header, defaults to None
-        :type fields: list or None
+            there is no header
         :raises ValueError: If header and fields specified or if neither is
             specified
         """
@@ -512,7 +495,7 @@ class LoggingCursor(DictCursor):
 
 class SavepointCursor(LoggingCursor):
     """
-    Wraps LoggingCursor methods to use a savepoint context manager
+    Wraps :class:`LoggingCursor` methods to use a savepoint context manager
     """
 
     @savepoint_wrapper
@@ -560,12 +543,10 @@ def replace_dict_values_with_global_definition(
     Replaces values in the mapping with those in global_mapping when the value
     is a str and it is a key in the global mapping
 
-    :param MutableMapping mapping: The mapping for which to replace values
-    :param Mapping global_mapping: The mapping from which to get replacement
-        values, defaults to globals()
+    :param mapping: The mapping for which to replace values
+    :param global_mapping: The mapping from which to get replacement values
     :return: Updated mapping replacing (key, value) with
         (key, global_mapping[value]) for appropriate keys
-    :rtype: MutableMapping
     """
     for key, value in mapping.items():
         if isinstance(value, str) and value in global_mapping:
@@ -585,27 +566,27 @@ def get_db_args(
     """
     Returns a dict of arguments to log in with psycopg2.
     Resolution order for connecting to a database is as follows:
-        1a. service, referring to a PostgreSQL service name, normally defined in
-            ~/.pg_service.conf
-        1b. db_args, arbitrary dictionary of arguments
-        2. Environment variable DB_CONNECTION_STRING with format
-            postgres://your_user:your_password@your_host:your_port/your_database
-        3. Environment variable PGSERVICE, referring to a PostgreSQL service
-            name
-        4. cfg["db"], which should resolve to a dictionary of arguments
 
-    :param service: The PostgreSQL service to connect to, defaults to None
-    :type service: str or None
-    :param db_args: A mapping of database connection arguments, defaults to None
-    :type db_args: Mapping or None
+    #.
+
+       #. service, referring to a PostgreSQL service name, normally defined
+          in ``~/.pg_service.conf``
+       #. db_args, arbitrary dictionary of arguments
+
+    #. Environment variable ``$DB_CONNECTION_STRING`` with format::
+
+        postgres://your_user:your_password@your_host:your_port/your_database
+
+    #. Environment variable ``$PGSERVICE``, referring to a PostgreSQL service name
+    #. ``cfg["db"]``, which should resolve to a dictionary of arguments
+
+    :param service: The PostgreSQL service to connect to
+    :param db_args: A mapping of database connection arguments
     :param logger: Optional logger to write to
-    :type logger: logging.Logger or None
-    :param psycopg2.cursor_factory: The class of cursor to use for the
-        connection by default (used for service/$DB_CONNECTION_STRING, defaults
-        to LoggingCursor
-    :raises ValueError: If service and db_args are specified
+    :param cursor_factory: The class of cursor to use for the
+        connection by default (used for ``service``/``$DB_CONNECTION_STRING``)
+    :raises ValueError: If ``service`` and ``db_args`` are specified
     :return: The dict of login arguments
-    :rtype: dict
     """
     # Check for environment variables
     db_connection_string = os.getenv("DB_CONNECTION_STRING")
@@ -640,18 +621,14 @@ class DBConnection(object):
     Creates a psycopg2 database connection with the specified parameters and
     acts as a context manager.
 
-    :param service: The PostgreSQL service to connect to, defaults to None
-    :type service: str or None
-    :param db_args: A mapping of database connection arguments, defaults to None
-    :type db_args: Mapping or None
-    :param str log_name: The name to give the logger, defaults to
-        cfg["logging"]["names"]["db"]
-    :param bool commit: Commit the transaction upon closing the connection if no
-        errors were encountered, defaults to False
-    :param psycopg2.cursor_factory: The class of cursor to use for the
-        connection by default (used for service/$DB_CONNECTION_STRING, defaults
-        to LoggingCursor
-    :raises ValueError: If service and db_args are specified
+    :param service: The PostgreSQL service to connect to
+    :param db_args: A mapping of database connection arguments
+    :param log_name: The name to give the logger
+    :param commit: Commit the transaction upon closing the connection if no
+        errors were encountered
+    :param cursor_factory: The class of cursor to use for the connection
+        by default (used for ``service``/``$DB_CONNECTION_STRING``)
+    :raises ValueError: If ``service`` and ``db_args`` are specified
     """
 
     def __init__(
@@ -668,8 +645,8 @@ class DBConnection(object):
 
     def connect(self) -> None:
         """
-        Connects to the database and creates attributes db and cursor for the
-        connection and a cursor, respectively
+        Connects to the database and creates attributes ``db`` and ``cursor``
+        for the connection and a cursor, respectively
         """
         self.logger.debug(f"Connecting to DB with parameters: {self.db_args}.")
         self.db = psycopg2.connect(**self.db_args)
@@ -677,10 +654,10 @@ class DBConnection(object):
 
     def disconnect(self, exception: bool) -> None:
         """
-        Disconnect from the database and commit if self.commit = True and no
-        exception has been raised
+        Disconnect from the database and commit if ``self.commit = True`` and
+        no exception has been raised
 
-        :param bool exception: Whether an exception has been raised or not
+        :param exception: Whether an exception has been raised or not
         """
         if not self.db.closed:
             if self.commit and not exception:
@@ -693,7 +670,6 @@ class DBConnection(object):
         For use as a context manager, creates and returns a database connection
 
         :return: The database connection
-        :rtype: psycopg2.extensions.connection
         """
         self.connect()
         return self.db
@@ -708,7 +684,6 @@ class DBConnection(object):
         For use as a context manager, disconnects the database connection
 
         :return: Whether an exception has occurred
-        :rtype: bool
         """
         self.disconnect(exc_type is not None)
 
@@ -721,12 +696,8 @@ def connect_to_db(
     Return a connection to the specified PostgreSQL database
 
     :param service: The PostgreSQL service to connect to
-    :type service: str or None
-    :param db_args: A mapping of database connection arguments, defaults to
-        cfg["db"]
-    :type db_args: Mapping or None
+    :param db_args: A mapping of database connection arguments
     :return: The database connection
-    :rtype: psycopg2.extensions.connection
     """
     db_args = get_db_args(service, db_args, logger)
     logger.debug(f"Connecting to DB with parameters: {db_args}.")

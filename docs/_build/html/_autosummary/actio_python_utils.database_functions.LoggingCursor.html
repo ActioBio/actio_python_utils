@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>actio_python_utils.database_functions.LoggingCursor &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b76e3c8a" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=601dbdee" />
+    <script src="../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.database_functions.LoggingCursor</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="actio-python-utils-database-functions-loggingcursor">
+<h1>actio_python_utils.database_functions.LoggingCursor<a class="headerlink" href="#actio-python-utils-database-functions-loggingcursor" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">actio_python_utils.database_functions.</span></span><span class="sig-name descname"><span class="pre">LoggingCursor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'INFO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sql_debug'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">DictCursor</span></code></p>
+<p>Wraps <code class="xref py py-class docutils literal notranslate"><span class="pre">psycopg2.extras.DictCursor</span></code> such that each copy_expert and
+execute statement is logged</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>*args</strong> – Any positional arguments to pass to the DictCursor constructor</p></li>
+<li><p><strong>log_level</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> | <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'INFO'</span></code>) – The logging level to use</p></li>
+<li><p><strong>log_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'sql_debug'</span></code>) – The name to give the logger</p></li>
+<li><p><strong>**kwargs</strong> – Any named arguments to pass to the DictCursor constructor</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'INFO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sql_debug'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.__init__" title="actio_python_utils.database_functions.LoggingCursor.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(*args[, log_level, log_name])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.callproc" title="actio_python_utils.database_functions.LoggingCursor.callproc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">callproc</span></code></a>(procname[, vars])</p></td>
+<td><p>callproc(procname, parameters=None) -- Execute stored procedure.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.cast" title="actio_python_utils.database_functions.LoggingCursor.cast"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cast</span></code></a>(oid, s)</p></td>
+<td><p>Convert the string s to a Python object according to its oid.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.close" title="actio_python_utils.database_functions.LoggingCursor.close"><code class="xref py py-obj docutils literal notranslate"><span class="pre">close</span></code></a></p></td>
+<td><p>close() -- Close the cursor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.confirm_table_and_file_columns_match" title="actio_python_utils.database_functions.LoggingCursor.confirm_table_and_file_columns_match"><code class="xref py py-obj docutils literal notranslate"><span class="pre">confirm_table_and_file_columns_match</span></code></a>(...[, ...])</p></td>
+<td><p>Confirm that the field names in a table match those of a file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.copy_expert" title="actio_python_utils.database_functions.LoggingCursor.copy_expert"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_expert</span></code></a>(sql, file, *args[, dry_run])</p></td>
+<td><p>Logs the sql statement and executes it if <code class="docutils literal notranslate"><span class="pre">dry_run</span> <span class="pre">=</span> <span class="pre">False</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.copy_from" title="actio_python_utils.database_functions.LoggingCursor.copy_from"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_from</span></code></a></p></td>
+<td><p>copy_from(file, table, sep='t', null='\N', size=8192, columns=None) -- Copy table from file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.copy_to" title="actio_python_utils.database_functions.LoggingCursor.copy_to"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_to</span></code></a></p></td>
+<td><p>copy_to(file, table, sep='t', null='\N', columns=None) -- Copy table to file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.copy_to_csv" title="actio_python_utils.database_functions.LoggingCursor.copy_to_csv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy_to_csv</span></code></a>(sql, file, *args[, dry_run])</p></td>
+<td><p>Logs the sql statement and executes it if <code class="docutils literal notranslate"><span class="pre">dry_run</span> <span class="pre">=</span> <span class="pre">False</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.drop_table_constraints" title="actio_python_utils.database_functions.LoggingCursor.drop_table_constraints"><code class="xref py py-obj docutils literal notranslate"><span class="pre">drop_table_constraints</span></code></a>(table_list[, dry_run])</p></td>
+<td><p>Takes a list of tables and finds all constraints defined on them, then drops them.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.drop_table_keys" title="actio_python_utils.database_functions.LoggingCursor.drop_table_keys"><code class="xref py py-obj docutils literal notranslate"><span class="pre">drop_table_keys</span></code></a>([table_list, dry_run])</p></td>
+<td><p>Takes a list of tables and drops all indexes defined on them.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.execute" title="actio_python_utils.database_functions.LoggingCursor.execute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">execute</span></code></a>(query[, vars, dry_run, ...])</p></td>
+<td><p>Logs the query and executes it if <code class="docutils literal notranslate"><span class="pre">dry_run</span> <span class="pre">=</span> <span class="pre">False</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.executemany" title="actio_python_utils.database_functions.LoggingCursor.executemany"><code class="xref py py-obj docutils literal notranslate"><span class="pre">executemany</span></code></a></p></td>
+<td><p>executemany(query, vars_list) -- Execute many queries with bound vars.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.fetchall" title="actio_python_utils.database_functions.LoggingCursor.fetchall"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fetchall</span></code></a>()</p></td>
+<td><p>Return all the remaining rows of a query result set.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.fetchmany" title="actio_python_utils.database_functions.LoggingCursor.fetchmany"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fetchmany</span></code></a>([size])</p></td>
+<td><p>Return the next <cite>size</cite> rows of a query result set in the form of a list of tuples (by default) or using the sequence factory previously set in the <cite>row_factory</cite> attribute.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.fetchone" title="actio_python_utils.database_functions.LoggingCursor.fetchone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fetchone</span></code></a>()</p></td>
+<td><p>Return the next row of a query result set in the form of a tuple (by default) or using the sequence factory previously set in the <cite>row_factory</cite> attribute.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.get_db_table_columns" title="actio_python_utils.database_functions.LoggingCursor.get_db_table_columns"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_db_table_columns</span></code></a>(table_name)</p></td>
+<td><p>Get the list of all non-generated column names for a PostgreSQL table.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.get_table_constraint_statements" title="actio_python_utils.database_functions.LoggingCursor.get_table_constraint_statements"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_table_constraint_statements</span></code></a>(table_list)</p></td>
+<td><p>Takes a list of tables and returns a list of all the SQL definitions of constraints defined on the tables.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.import_table" title="actio_python_utils.database_functions.LoggingCursor.import_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_table</span></code></a>(table_fn, table_name[, ...])</p></td>
+<td><p>Load a PostgreSQL CSV or TEXT format file to the database</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.mogrify" title="actio_python_utils.database_functions.LoggingCursor.mogrify"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mogrify</span></code></a>(query[, vars])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.nextset" title="actio_python_utils.database_functions.LoggingCursor.nextset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">nextset</span></code></a></p></td>
+<td><p>nextset() -- Skip to next set of data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.scroll" title="actio_python_utils.database_functions.LoggingCursor.scroll"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scroll</span></code></a></p></td>
+<td><p>scroll(value, mode='relative') -- Scroll to new position according to mode.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.setinputsizes" title="actio_python_utils.database_functions.LoggingCursor.setinputsizes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">setinputsizes</span></code></a></p></td>
+<td><p>setinputsizes(sizes) -- Set memory areas before execute.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.setoutputsize" title="actio_python_utils.database_functions.LoggingCursor.setoutputsize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">setoutputsize</span></code></a></p></td>
+<td><p>setoutputsize(size, column=None) -- Set column buffer size.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.arraysize" title="actio_python_utils.database_functions.LoggingCursor.arraysize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">arraysize</span></code></a></p></td>
+<td><p>Number of records <cite>fetchmany()</cite> must fetch if not explicitly specified.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">binary_types</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.closed" title="actio_python_utils.database_functions.LoggingCursor.closed"><code class="xref py py-obj docutils literal notranslate"><span class="pre">closed</span></code></a></p></td>
+<td><p>True if cursor is closed, False if cursor is open</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.connection" title="actio_python_utils.database_functions.LoggingCursor.connection"><code class="xref py py-obj docutils literal notranslate"><span class="pre">connection</span></code></a></p></td>
+<td><p>The connection where the cursor comes from.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.description" title="actio_python_utils.database_functions.LoggingCursor.description"><code class="xref py py-obj docutils literal notranslate"><span class="pre">description</span></code></a></p></td>
+<td><p>Cursor description as defined in DBAPI-2.0.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.itersize" title="actio_python_utils.database_functions.LoggingCursor.itersize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">itersize</span></code></a></p></td>
+<td><p>Number of records <code class="docutils literal notranslate"><span class="pre">iter(cur)</span></code> must fetch per network roundtrip.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.lastrowid" title="actio_python_utils.database_functions.LoggingCursor.lastrowid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lastrowid</span></code></a></p></td>
+<td><p>The <code class="docutils literal notranslate"><span class="pre">oid</span></code> of the last row inserted by the cursor.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">name</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.pgresult_ptr" title="actio_python_utils.database_functions.LoggingCursor.pgresult_ptr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pgresult_ptr</span></code></a></p></td>
+<td><p>pgresult_ptr -- Get the PGresult structure pointer.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.query" title="actio_python_utils.database_functions.LoggingCursor.query"><code class="xref py py-obj docutils literal notranslate"><span class="pre">query</span></code></a></p></td>
+<td><p>The last query text sent to the backend.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">row_factory</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.rowcount" title="actio_python_utils.database_functions.LoggingCursor.rowcount"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rowcount</span></code></a></p></td>
+<td><p>Number of rows read from the backend in the last command.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.rownumber" title="actio_python_utils.database_functions.LoggingCursor.rownumber"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rownumber</span></code></a></p></td>
+<td><p>The current row position.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.scrollable" title="actio_python_utils.database_functions.LoggingCursor.scrollable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scrollable</span></code></a></p></td>
+<td><p>Set or return cursor use of SCROLL</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.statusmessage" title="actio_python_utils.database_functions.LoggingCursor.statusmessage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">statusmessage</span></code></a></p></td>
+<td><p>The return message of the last command.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">string_types</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">typecaster</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">tzinfo_factory</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.database_functions.LoggingCursor.withhold" title="actio_python_utils.database_functions.LoggingCursor.withhold"><code class="xref py py-obj docutils literal notranslate"><span class="pre">withhold</span></code></a></p></td>
+<td><p>Set or return cursor use of WITH HOLD</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.arraysize">
+<span class="sig-name descname"><span class="pre">arraysize</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.arraysize" title="Link to this definition">¶</a></dt>
+<dd><p>Number of records <cite>fetchmany()</cite> must fetch if not explicitly specified.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.callproc">
+<span class="sig-name descname"><span class="pre">callproc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">procname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psycopg2/extras.html#LoggingCursor.callproc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.callproc" title="Link to this definition">¶</a></dt>
+<dd><p>callproc(procname, parameters=None) – Execute stored procedure.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.cast">
+<span class="sig-name descname"><span class="pre">cast</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">oid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">value</span></span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.cast" title="Link to this definition">¶</a></dt>
+<dd><p>Convert the string s to a Python object according to its oid.</p>
+<p>Look for a typecaster first in the cursor, then in its connection,then in the global register. If no suitable typecaster is found,leave the value as a string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.close" title="Link to this definition">¶</a></dt>
+<dd><p>close() – Close the cursor.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.closed">
+<span class="sig-name descname"><span class="pre">closed</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.closed" title="Link to this definition">¶</a></dt>
+<dd><p>True if cursor is closed, False if cursor is open</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.confirm_table_and_file_columns_match">
+<span class="sig-name descname"><span class="pre">confirm_table_and_file_columns_match</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">','</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sanitize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_columns_subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.confirm_table_and_file_columns_match"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.confirm_table_and_file_columns_match" title="Link to this definition">¶</a></dt>
+<dd><p>Confirm that the field names in a table match those of a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table_fn</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The file name of the data source to check</p></li>
+<li><p><strong>table_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The name of the database table to check</p></li>
+<li><p><strong>sep</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">','</span></code>) – The column separator to use</p></li>
+<li><p><strong>sanitize</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Whether to sanitize column names with
+<a class="reference internal" href="actio_python_utils.utils.get_csv_fields.html#actio_python_utils.utils.get_csv_fields" title="actio_python_utils.utils.get_csv_fields"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_csv_fields()</span></code></a></p></li>
+<li><p><strong>allow_columns_subset</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Whether to allow loading to the table with
+only a subset of the columns</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If file columns do not match database table columns</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The list of column names to load</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.connection">
+<span class="sig-name descname"><span class="pre">connection</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.connection" title="Link to this definition">¶</a></dt>
+<dd><p>The connection where the cursor comes from.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.copy_expert">
+<span class="sig-name descname"><span class="pre">copy_expert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sql</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.copy_expert"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.copy_expert" title="Link to this definition">¶</a></dt>
+<dd><p>Logs the sql statement and executes it if <code class="docutils literal notranslate"><span class="pre">dry_run</span> <span class="pre">=</span> <span class="pre">False</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sql</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The SQL statement to execute</p></li>
+<li><p><strong>file</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The path to the file to import</p></li>
+<li><p><strong>*args</strong> – Any positional arguments</p></li>
+<li><p><strong>dry_run</strong> (default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Do a dry run</p></li>
+<li><p><strong>**kwargs</strong> – Any named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.copy_from">
+<span class="sig-name descname"><span class="pre">copy_from</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.copy_from" title="Link to this definition">¶</a></dt>
+<dd><p>copy_from(file, table, sep=’t’, null=’\N’, size=8192, columns=None) – Copy table from file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.copy_to">
+<span class="sig-name descname"><span class="pre">copy_to</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.copy_to" title="Link to this definition">¶</a></dt>
+<dd><p>copy_to(file, table, sep=’t’, null=’\N’, columns=None) – Copy table to file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.copy_to_csv">
+<span class="sig-name descname"><span class="pre">copy_to_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sql</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.copy_to_csv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.copy_to_csv" title="Link to this definition">¶</a></dt>
+<dd><p>Logs the sql statement and executes it if <code class="docutils literal notranslate"><span class="pre">dry_run</span> <span class="pre">=</span> <span class="pre">False</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sql</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The SQL statement to execute</p></li>
+<li><p><strong>file</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The path to the file to write to</p></li>
+<li><p><strong>*args</strong> – Any positional arguments</p></li>
+<li><p><strong>dry_run</strong> (default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Do a dry run</p></li>
+<li><p><strong>**kwargs</strong> – Any named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.description">
+<span class="sig-name descname"><span class="pre">description</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.description" title="Link to this definition">¶</a></dt>
+<dd><p>Cursor description as defined in DBAPI-2.0.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.drop_table_constraints">
+<span class="sig-name descname"><span class="pre">drop_table_constraints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.drop_table_constraints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.drop_table_constraints" title="Link to this definition">¶</a></dt>
+<dd><p>Takes a list of tables and finds all constraints defined on them, then
+drops them.  Foreign key constraints are processed first because
+attempting to drop a unique key on a column that is referenced in a
+foreign key results in an error.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table_list</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – The list of tables to get constraints on</p></li>
+<li><p><strong>dry_run</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Do a dry run</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.drop_table_keys">
+<span class="sig-name descname"><span class="pre">drop_table_keys</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.drop_table_keys"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.drop_table_keys" title="Link to this definition">¶</a></dt>
+<dd><p>Takes a list of tables and drops all indexes defined on them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table_list</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – The list of tables to drop index on</p></li>
+<li><p><strong>dry_run</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Do a dry run</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.execute">
+<span class="sig-name descname"><span class="pre">execute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dont_use_savepoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.execute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.execute" title="Link to this definition">¶</a></dt>
+<dd><p>Logs the query and executes it if <code class="docutils literal notranslate"><span class="pre">dry_run</span> <span class="pre">=</span> <span class="pre">False</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>query</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The SQL query to execute</p></li>
+<li><p><strong>vars</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code> | <code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – Variables to bind to the query</p></li>
+<li><p><strong>*args</strong> – Any positional arguments</p></li>
+<li><p><strong>dry_run</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Do a dry run</p></li>
+<li><p><strong>dont_use_savepoint</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Ignored</p></li>
+<li><p><strong>**kwargs</strong> – Any named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.executemany">
+<span class="sig-name descname"><span class="pre">executemany</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.executemany" title="Link to this definition">¶</a></dt>
+<dd><p>executemany(query, vars_list) – Execute many queries with bound vars.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.fetchall">
+<span class="sig-name descname"><span class="pre">fetchall</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span> <span class="pre">of</span> <span class="pre">tuple</span></span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.fetchall" title="Link to this definition">¶</a></dt>
+<dd><p>Return all the remaining rows of a query result set.</p>
+<p>Rows are returned in the form of a list of tuples (by default) or using
+the sequence factory previously set in the <cite>row_factory</cite> attribute.
+Return <cite>!None</cite> when no more data is available.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.fetchmany">
+<span class="sig-name descname"><span class="pre">fetchmany</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">self.arraysize</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span> <span class="pre">of</span> <span class="pre">tuple</span></span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.fetchmany" title="Link to this definition">¶</a></dt>
+<dd><p>Return the next <cite>size</cite> rows of a query result set in the form of a list
+of tuples (by default) or using the sequence factory previously set in
+the <cite>row_factory</cite> attribute.</p>
+<p>Return an empty list when no more data is available.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.fetchone">
+<span class="sig-name descname"><span class="pre">fetchone</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span> <span class="pre">or</span> <span class="pre">None</span></span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.fetchone" title="Link to this definition">¶</a></dt>
+<dd><p>Return the next row of a query result set in the form of a tuple (by
+default) or using the sequence factory previously set in the
+<cite>row_factory</cite> attribute. Return <cite>!None</cite> when no more data is available.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.get_db_table_columns">
+<span class="sig-name descname"><span class="pre">get_db_table_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.get_db_table_columns"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.get_db_table_columns" title="Link to this definition">¶</a></dt>
+<dd><p>Get the list of all non-generated column names for a PostgreSQL table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>table_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The possibly schema qualified table name</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The list of non-generated columns from the table, ordered by their
+position in the database</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.get_table_constraint_statements">
+<span class="sig-name descname"><span class="pre">get_table_constraint_statements</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.get_table_constraint_statements"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.get_table_constraint_statements" title="Link to this definition">¶</a></dt>
+<dd><p>Takes a list of tables and returns a list of all the SQL definitions of
+constraints defined on the tables.  The constraints are ordered by keys,
+then other constraints on the tables, and lastly foreign keys defined on
+other tables that reference one of the tables specified.
+The purpose of this is to be able to drop these constraints, load data, and
+recreate them for efficiency.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>table_list</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – The list of tables to get constraints on</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The list of constraints</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.import_table">
+<span class="sig-name descname"><span class="pre">import_table</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">csv_format=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sep='</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sanitize=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">truncate=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quote='\\'&quot;\\''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">escape='\\'&quot;\\''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_columns_subset=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fields=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/database_functions.html#LoggingCursor.import_table"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.import_table" title="Link to this definition">¶</a></dt>
+<dd><p>Load a PostgreSQL CSV or TEXT format file to the database</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table_fn</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The file name of the data source to load</p></li>
+<li><p><strong>table_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The name of the database table to load to</p></li>
+<li><p><strong>csv_format</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Whether to use CSV format (otherwise TEXT)</p></li>
+<li><p><strong>sep</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">','</span></code>) – The column separator to use</p></li>
+<li><p><strong>sanitize</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Whether to sanitize column names with
+<a class="reference internal" href="actio_python_utils.utils.get_csv_fields.html#actio_python_utils.utils.get_csv_fields" title="actio_python_utils.utils.get_csv_fields"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_csv_fields()</span></code></a></p></li>
+<li><p><strong>truncate</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) – Whether to truncate the table before loading</p></li>
+<li><p><strong>header</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) – Whether the file has a header row</p></li>
+<li><p><strong>quote</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'\\'&quot;\\''</span></code>) – The quote character</p></li>
+<li><p><strong>escape</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'\\'&quot;\\''</span></code>) – The escape character</p></li>
+<li><p><strong>allow_columns_subset</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Whether to allow loading to the table with
+only a subset of the columns</p></li>
+<li><p><strong>fields</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – A list of fields for the file; this value is required if
+there is no header</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If header and fields specified or if neither is
+specified</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.itersize">
+<span class="sig-name descname"><span class="pre">itersize</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.itersize" title="Link to this definition">¶</a></dt>
+<dd><p>Number of records <code class="docutils literal notranslate"><span class="pre">iter(cur)</span></code> must fetch per network roundtrip.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.lastrowid">
+<span class="sig-name descname"><span class="pre">lastrowid</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.lastrowid" title="Link to this definition">¶</a></dt>
+<dd><p>The <code class="docutils literal notranslate"><span class="pre">oid</span></code> of the last row inserted by the cursor.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.mogrify">
+<span class="sig-name descname"><span class="pre">mogrify</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span> <span class="pre">--</span> <span class="pre">Return</span> <span class="pre">query</span> <span class="pre">after</span> <span class="pre">vars</span> <span class="pre">binding.</span></span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.mogrify" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.nextset">
+<span class="sig-name descname"><span class="pre">nextset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.nextset" title="Link to this definition">¶</a></dt>
+<dd><p>nextset() – Skip to next set of data.</p>
+<p>This method is not supported (PostgreSQL does not have multiple data 
+sets) and will raise a NotSupportedError exception.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.pgresult_ptr">
+<span class="sig-name descname"><span class="pre">pgresult_ptr</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.pgresult_ptr" title="Link to this definition">¶</a></dt>
+<dd><p>pgresult_ptr – Get the PGresult structure pointer.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.query">
+<span class="sig-name descname"><span class="pre">query</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.query" title="Link to this definition">¶</a></dt>
+<dd><p>The last query text sent to the backend.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.rowcount">
+<span class="sig-name descname"><span class="pre">rowcount</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.rowcount" title="Link to this definition">¶</a></dt>
+<dd><p>Number of rows read from the backend in the last command.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.rownumber">
+<span class="sig-name descname"><span class="pre">rownumber</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.rownumber" title="Link to this definition">¶</a></dt>
+<dd><p>The current row position.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.scroll">
+<span class="sig-name descname"><span class="pre">scroll</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.scroll" title="Link to this definition">¶</a></dt>
+<dd><p>scroll(value, mode=’relative’) – Scroll to new position according to mode.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.scrollable">
+<span class="sig-name descname"><span class="pre">scrollable</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.scrollable" title="Link to this definition">¶</a></dt>
+<dd><p>Set or return cursor use of SCROLL</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.setinputsizes">
+<span class="sig-name descname"><span class="pre">setinputsizes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.setinputsizes" title="Link to this definition">¶</a></dt>
+<dd><p>setinputsizes(sizes) – Set memory areas before execute.</p>
+<p>This method currently does nothing but it is safe to call it.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.setoutputsize">
+<span class="sig-name descname"><span class="pre">setoutputsize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.setoutputsize" title="Link to this definition">¶</a></dt>
+<dd><p>setoutputsize(size, column=None) – Set column buffer size.</p>
+<p>This method currently does nothing but it is safe to call it.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.statusmessage">
+<span class="sig-name descname"><span class="pre">statusmessage</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.statusmessage" title="Link to this definition">¶</a></dt>
+<dd><p>The return message of the last command.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="actio_python_utils.database_functions.LoggingCursor.withhold">
+<span class="sig-name descname"><span class="pre">withhold</span></span><a class="headerlink" href="#actio_python_utils.database_functions.LoggingCursor.withhold" title="Link to this definition">¶</a></dt>
+<dd><p>Set or return cursor use of WITH HOLD</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../history.html">History</a></li>
+</ul>
+
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/_autosummary/actio_python_utils.database_functions.LoggingCursor.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.database_functions.LoggingCursor</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>actio_python_utils.utils &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b76e3c8a" />
+    <link rel="stylesheet" type="text/css" href="../../_static/nature.css?v=601dbdee" />
+    <script src="../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.utils</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for actio_python_utils.utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">_io</span>
+<span class="kn">import</span> <span class="nn">bz2</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">gzip</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">lzma</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">signal</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Hashable</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">MutableMapping</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">reduce</span><span class="p">,</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">numbers</span> <span class="kn">import</span> <span class="n">Real</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+
+
+<span class="c1"># load YAML config file</span>
+<span class="n">cfg_fn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">),</span> <span class="s2">&quot;.actiorc&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">cfg_fn</span><span class="p">):</span>
+    <span class="n">cfg_fn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;conf&quot;</span><span class="p">,</span> <span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cfg_fn</span><span class="p">)</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="coalesce">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.coalesce.html#actio_python_utils.utils.coalesce">[docs]</a>
+<span class="k">def</span> <span class="nf">coalesce</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the first argument that is not ``None``</span>
+
+<span class="sd">    :return: The first defined value</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">item</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">item</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="flatten_cfg">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.flatten_cfg.html#actio_python_utils.utils.flatten_cfg">[docs]</a>
+<span class="k">def</span> <span class="nf">flatten_cfg</span><span class="p">(</span>
+    <span class="n">key</span><span class="p">:</span> <span class="n">Hashable</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="n">MutableMapping</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="nb">dict</span> <span class="o">|</span> <span class="nb">list</span><span class="p">]</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flatten a nested value in a dict</span>
+
+<span class="sd">    :param key: The key corresponding to the value to flatten</span>
+<span class="sd">    :param d: The dict to use</span>
+<span class="sd">    :param sep: The value to join key with its nested values</span>
+<span class="sd">    :raises TypeError: If ``d[key]`` is not either a :class:`dict` or</span>
+<span class="sd">        :class:`list`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> isn&#39;t a valid key in </span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="n">key_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">key_type</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">keys_to_delete</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pairs_to_add</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">nested_key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                <span class="n">keys_to_delete</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nested_key</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">subkey</span><span class="p">,</span> <span class="n">subvalue</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">pairs_to_add</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">sep</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">nested_key</span><span class="p">,</span> <span class="n">subkey</span><span class="p">]),</span> <span class="n">subvalue</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">nested_key</span> <span class="ow">in</span> <span class="n">keys_to_delete</span><span class="p">:</span>
+            <span class="k">del</span> <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">nested_key</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">nested_key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">pairs_to_add</span><span class="p">:</span>
+            <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">nested_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">elif</span> <span class="n">key_type</span> <span class="ow">is</span> <span class="nb">list</span><span class="p">:</span>
+        <span class="c1"># this will retain the ordering which can be important for materialized views</span>
+        <span class="n">new_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">nested_key</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+                        <span class="n">new_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sep</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">nested_key</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">new_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_list</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected key type: </span><span class="si">{</span><span class="n">key_type</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="rename_dict_keys">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.rename_dict_keys.html#actio_python_utils.utils.rename_dict_keys">[docs]</a>
+<span class="k">def</span> <span class="nf">rename_dict_keys</span><span class="p">(</span>
+    <span class="n">original_dict</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">renames</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Hashable</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a new dict that&#39;s a copy of the supplied dict but with an arbitrary</span>
+<span class="sd">    number of keys renamed</span>
+
+<span class="sd">    :param original_dict: The dict to rename keys in</span>
+<span class="sd">    :param renames: A list of pairs of key names, ``[old, new]``</span>
+<span class="sd">    :return: A dict with relabelled keys</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">original_dict</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">old</span><span class="p">,</span> <span class="n">new</span> <span class="ow">in</span> <span class="n">renames</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">new</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">del</span> <span class="n">d</span><span class="p">[</span><span class="n">old</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">d</span><span class="p">[</span><span class="n">new</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">old</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">d</span></div>
+
+
+
+<div class="viewcode-block" id="cast_chromosome_to_int">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.cast_chromosome_to_int.html#actio_python_utils.utils.cast_chromosome_to_int">[docs]</a>
+<span class="k">def</span> <span class="nf">cast_chromosome_to_int</span><span class="p">(</span><span class="n">chromosome</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cast a chromosome string, optionally prefixed with chr, to an integer.</span>
+<span class="sd">    X -&gt; 23, Y -&gt; 24, M/MT -&gt; 25.  Failures will be returned as None</span>
+
+<span class="sd">    :param chromosome: The chromosome to cast</span>
+<span class="sd">    :return: The integer version of the chromosome</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">chromosome</span> <span class="o">=</span> <span class="n">chromosome</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="s2">&quot;chr&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">chromosome</span> <span class="o">==</span> <span class="s2">&quot;X&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">23</span>
+    <span class="k">elif</span> <span class="n">chromosome</span> <span class="o">==</span> <span class="s2">&quot;Y&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">24</span>
+    <span class="k">elif</span> <span class="n">chromosome</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;M&quot;</span><span class="p">,</span> <span class="s2">&quot;MT&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">25</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">chromosome</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="DictToFunc">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.DictToFunc.html#actio_python_utils.utils.DictToFunc">[docs]</a>
+<span class="k">class</span> <span class="nc">DictToFunc</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class that after initializing with a dict can be called to map keys to</span>
+<span class="sd">    values, e.g.::</span>
+
+<span class="sd">        &gt; D = DictToFunc({&quot;a&quot;: 42, &quot;b&quot;: &quot;apple&quot;})</span>
+<span class="sd">        &gt; D(&quot;a&quot;)</span>
+<span class="sd">        42</span>
+<span class="sd">        &gt; D(&quot;b&quot;)</span>
+<span class="sd">        apple</span>
+<span class="sd">        &gt; D(&quot;c&quot;)</span>
+<span class="sd">        KeyError(&quot;c&quot;)</span>
+
+<span class="sd">    :param choices: The dict to map keys to values</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="DictToFunc.__init__">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.DictToFunc.html#actio_python_utils.utils.DictToFunc.__init__">[docs]</a>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">choices</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">choices</span> <span class="o">=</span> <span class="n">choices</span></div>
+
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">Hashable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the value in ``self.choices`` for  ``key``</span>
+
+<span class="sd">        :param key: The dict key</span>
+<span class="sd">        :return: ``self.choices[key]``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">key</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="NumericValue">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.NumericValue.html#actio_python_utils.utils.NumericValue">[docs]</a>
+<span class="k">class</span> <span class="nc">NumericValue</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a class that can be used as a function to verify that a passed</span>
+<span class="sd">    argument is a numeric value of the correct type and in the expected range</span>
+
+<span class="sd">    :param min_value: Minimum value to compare to</span>
+<span class="sd">    :param max_value: Maximum value to compare to</span>
+<span class="sd">    :param left_op: Compare with  ``min_value left_op value``</span>
+<span class="sd">    :param right_op: Compare with ``value right_op max_value``</span>
+<span class="sd">    :param var_type: The type of value to cast to</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="NumericValue.__init__">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.NumericValue.html#actio_python_utils.utils.NumericValue.__init__">[docs]</a>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">min_value</span><span class="p">:</span> <span class="n">Real</span> <span class="o">=</span> <span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span>
+        <span class="n">max_value</span><span class="p">:</span> <span class="n">Real</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span>
+        <span class="n">left_op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Real</span><span class="p">,</span> <span class="n">Real</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="n">operator</span><span class="o">.</span><span class="n">le</span><span class="p">,</span>
+        <span class="n">right_op</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Real</span><span class="p">,</span> <span class="n">Real</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="n">operator</span><span class="o">.</span><span class="n">lt</span><span class="p">,</span>
+        <span class="n">var_type</span><span class="p">:</span> <span class="n">Real</span> <span class="o">=</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_value</span> <span class="o">=</span> <span class="n">min_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_value</span> <span class="o">=</span> <span class="n">max_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">left_op</span> <span class="o">=</span> <span class="n">left_op</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">right_op</span> <span class="o">=</span> <span class="n">right_op</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">var_type</span> <span class="o">=</span> <span class="n">var_type</span></div>
+
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg</span><span class="p">:</span> <span class="n">Real</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Real</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns ``self.var_type(arg)`` if this is valid,</span>
+<span class="sd">        ``self.left_op(self.min_value, self.var_type(arg))`` &amp;</span>
+<span class="sd">        ``self.right_op(self.var_type(arg), self.max_value)``</span>
+
+<span class="sd">        :param arg: the value to test</span>
+<span class="sd">        :raises ValueError: If arg cannot be cast to the desired type or if it</span>
+<span class="sd">            is not in the expected range</span>
+<span class="sd">        :return: ``self.var_type(arg)`` if possible and in the proper range</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_type</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">arg</span><span class="si">}</span><span class="s2"> is not the expected type (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">var_type</span><span class="si">}</span><span class="s2">).&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">left_op</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_value</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">right_op</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_value</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> is not in the expected range.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="timer">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.timer.html#actio_python_utils.utils.timer">[docs]</a>
+<span class="k">def</span> <span class="nf">timer</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="o">...</span><span class="p">],</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="o">...</span><span class="p">],</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wraps a function to output the running time of function calls.</span>
+
+<span class="sd">    :param func: The function to wrap</span>
+<span class="sd">    :return: The wrapped function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Finished </span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">!r}</span><span class="s2"> in </span><span class="si">{</span><span class="n">elapsed_time</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> seconds.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span></div>
+
+
+
+<div class="viewcode-block" id="debug">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.debug.html#actio_python_utils.utils.debug">[docs]</a>
+<span class="k">def</span> <span class="nf">debug</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="o">...</span><span class="p">],</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="o">...</span><span class="p">],</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wraps a function to output the function signature, run the function,</span>
+<span class="sd">    output the return value, and return the return value.</span>
+
+<span class="sd">    :param func: The function to wrap</span>
+<span class="sd">    :return: The wrapped function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">args_repr</span> <span class="o">=</span> <span class="p">[</span><span class="nb">repr</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+        <span class="n">kwargs_repr</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">v</span><span class="si">!r}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+        <span class="n">signature</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args_repr</span> <span class="o">+</span> <span class="n">kwargs_repr</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Calling </span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(</span><span class="si">{</span><span class="n">signature</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">!r}</span><span class="s2"> returned </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span></div>
+
+
+
+<div class="viewcode-block" id="which">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.which.html#actio_python_utils.utils.which">[docs]</a>
+<span class="k">def</span> <span class="nf">which</span><span class="p">(</span><span class="n">program</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param program: The program to find</span>
+<span class="sd">    :return: The path to the program if location, None otherwise</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">is_exe</span><span class="p">(</span><span class="n">fpath</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fpath</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">X_OK</span><span class="p">)</span>
+
+    <span class="n">fpath</span><span class="p">,</span> <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">fpath</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_exe</span><span class="p">(</span><span class="n">program</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">program</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">pathsep</span><span class="p">):</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+            <span class="n">exe_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">program</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_exe</span><span class="p">(</span><span class="n">exe_file</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">exe_file</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="open_pipe">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.open_pipe.html#actio_python_utils.utils.open_pipe">[docs]</a>
+<span class="k">def</span> <span class="nf">open_pipe</span><span class="p">(</span><span class="n">command</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">buff</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Runs a :class:`subprocess.Popen` and either retains input or output</span>
+
+<span class="sd">    :param command: The command to execute</span>
+<span class="sd">    :param mode: The mode with which to handle process, &quot;r&quot; = read, &quot;w&quot; = write</span>
+<span class="sd">    :param buff: Buffer size</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="s2">&quot;b&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mode</span>
+    <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
+            <span class="n">command</span><span class="p">,</span>
+            <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">bufsize</span><span class="o">=</span><span class="n">buff</span><span class="p">,</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">text</span><span class="o">=</span><span class="n">text</span><span class="p">,</span>
+            <span class="n">preexec_fn</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">signal</span><span class="o">.</span><span class="n">signal</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGPIPE</span><span class="p">,</span> <span class="n">signal</span><span class="o">.</span><span class="n">SIG_DFL</span><span class="p">),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">stdout</span>
+    <span class="k">elif</span> <span class="s2">&quot;w&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span>
+            <span class="n">command</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bufsize</span><span class="o">=</span><span class="n">buff</span><span class="p">,</span> <span class="n">stdin</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">text</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">stdin</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<span class="n">NORMAL</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">PROCESS</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">PARALLEL</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">WHICH_BZIP2</span> <span class="o">=</span> <span class="n">which</span><span class="p">(</span><span class="s2">&quot;bzip2&quot;</span><span class="p">)</span>
+<span class="n">WHICH_GZIP</span> <span class="o">=</span> <span class="n">which</span><span class="p">(</span><span class="s2">&quot;gzip&quot;</span><span class="p">)</span>
+<span class="n">WHICH_PBZIP2</span> <span class="o">=</span> <span class="n">which</span><span class="p">(</span><span class="s2">&quot;pbzip2&quot;</span><span class="p">)</span>
+<span class="n">WHICH_PIGZ</span> <span class="o">=</span> <span class="n">which</span><span class="p">(</span><span class="s2">&quot;pigz&quot;</span><span class="p">)</span>
+<span class="n">WHICH_XZ</span> <span class="o">=</span> <span class="n">which</span><span class="p">(</span><span class="s2">&quot;xz&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="open_bz2">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.open_bz2.html#actio_python_utils.utils.open_bz2">[docs]</a>
+<span class="k">def</span> <span class="nf">open_bz2</span><span class="p">(</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">buff</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span> <span class="n">external</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">PARALLEL</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a file handle to filename using ``pbzip2``, ``bzip2``, or ``b2``</span>
+<span class="sd">    module</span>
+
+<span class="sd">    :param filename: The filename to open</span>
+<span class="sd">    :param mode: The mode with which to open</span>
+<span class="sd">    :param buff: Buffer size</span>
+<span class="sd">    :param external: External code</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">external</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">external</span> <span class="o">==</span> <span class="n">NORMAL</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">bz2</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">external</span> <span class="o">==</span> <span class="n">PROCESS</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">WHICH_BZIP2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_bz2</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">NORMAL</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;bzip2 -dc &quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;w&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;bzip2 &gt;&quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">external</span> <span class="o">==</span> <span class="n">PARALLEL</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">WHICH_PBZIP2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_bz2</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">PROCESS</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;pbzip2 -dc &quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;w&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;pbzip2 &gt;&quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="open_gz">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.open_gz.html#actio_python_utils.utils.open_gz">[docs]</a>
+<span class="k">def</span> <span class="nf">open_gz</span><span class="p">(</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">buff</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span> <span class="n">external</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">PARALLEL</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a file handle to filename using ``pigz``, ``gzip``, or ``gzip`` module</span>
+
+<span class="sd">    :param filename: The filename to open</span>
+<span class="sd">    :param mode: The mode with which to open</span>
+<span class="sd">    :param buff: Buffer size</span>
+<span class="sd">    :param external: External code</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">external</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">external</span> <span class="o">==</span> <span class="n">NORMAL</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">external</span> <span class="o">==</span> <span class="n">PROCESS</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">WHICH_GZIP</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_gz</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">NORMAL</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;gzip -dc &quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;w&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;gzip &gt;&quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">external</span> <span class="o">==</span> <span class="n">PARALLEL</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">WHICH_PIGZ</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_gz</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">PROCESS</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;pigz -dc &quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;w&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;pigz &gt;&quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="open_xz">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.open_xz.html#actio_python_utils.utils.open_xz">[docs]</a>
+<span class="k">def</span> <span class="nf">open_xz</span><span class="p">(</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">buff</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span> <span class="n">external</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">PARALLEL</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a file handle to filename using either ``xz`` or ``lzma`` module</span>
+
+<span class="sd">    :param filename: The filename to open</span>
+<span class="sd">    :param mode: The mode with which to open</span>
+<span class="sd">    :param buff: Buffer size</span>
+<span class="sd">    :param external: External code</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">external</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">external</span> <span class="o">==</span> <span class="n">NORMAL</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">lzma</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">external</span> <span class="o">==</span> <span class="n">PROCESS</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">WHICH_XZ</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_xz</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">NORMAL</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;xz -dc &quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="s2">&quot;xz &gt;&quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">external</span> <span class="o">==</span> <span class="n">PARALLEL</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">open_xz</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">PROCESS</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="zopen">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.zopen.html#actio_python_utils.utils.zopen">[docs]</a>
+<span class="k">def</span> <span class="nf">zopen</span><span class="p">(</span>
+    <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">buff</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span> <span class="n">external</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">PARALLEL</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Open pipe, zipped, or unzipped file automagically</span>
+
+<span class="sd">    |  ``external == 0``: normal zip libraries</span>
+<span class="sd">    |  ``external == 1``: (zcat, gzip, xz) or (bzcat, bzip2)</span>
+<span class="sd">    |  ``external == 2``: (pigz -dc, pigz) or (pbzip2 -dc, pbzip2)</span>
+
+<span class="sd">    :param filename: The filename to open</span>
+<span class="sd">    :param mode: The mode with which to open the file handle</span>
+<span class="sd">    :param buff: Buffer size</span>
+<span class="sd">    :param external: External process code usage</span>
+<span class="sd">    :raises ValueError: If &quot;r&quot; and &quot;w&quot; in mode or neither in mode</span>
+<span class="sd">    :return: The opened file handle</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;w&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;r or w must be in mode and not both&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">filename</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;!&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">open_pipe</span><span class="p">(</span><span class="n">filename</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.bz2&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">open_bz2</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">external</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.gz&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">open_gz</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">external</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.xz&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">open_xz</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">,</span> <span class="n">external</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">buff</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="extract_excel_sheet">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.extract_excel_sheet.html#actio_python_utils.utils.extract_excel_sheet">[docs]</a>
+<span class="k">def</span> <span class="nf">extract_excel_sheet</span><span class="p">(</span>
+    <span class="n">fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">output_fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">sheet</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Sheet1&quot;</span><span class="p">,</span>
+    <span class="n">skip_nlines</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">comment_prefix</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">replacement_patterns</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract a sheet from an Excel spreadsheet.</span>
+
+<span class="sd">    :param fn: The spreadsheet filename</span>
+<span class="sd">    :param output_fn: The output filename</span>
+<span class="sd">    :param sheet: The sheet name to extract</span>
+<span class="sd">    :param skip_nlines: Skip this many lines</span>
+<span class="sd">    :param comment_prefix: Skip each line that begins with this string</span>
+<span class="sd">    :param replacement_patterns: A mapping of patterns to replace; each key will</span>
+<span class="sd">        be replaced by its value</span>
+<span class="sd">    :param \**kwargs: Any keyword arguments to pass to csv.writer</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">openpyxl</span>
+
+    <span class="k">if</span> <span class="n">replacement_patterns</span><span class="p">:</span>
+        <span class="n">replacement_func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span>
+            <span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="n">reduce</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">pattern_repl</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">pattern_repl</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pattern_repl</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">y</span><span class="p">),</span>
+                <span class="n">replacement_patterns</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">replacement_func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
+    <span class="n">wb</span> <span class="o">=</span> <span class="n">openpyxl</span><span class="o">.</span><span class="n">load_workbook</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">read_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">ws</span> <span class="o">=</span> <span class="n">wb</span><span class="p">[</span><span class="n">sheet</span><span class="p">]</span>
+    <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">output_fn</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csv_fh</span><span class="p">:</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">csv_fh</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">rows</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">skip_nlines</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">comment_prefix</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">comment_prefix</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">w</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">replacement_func</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">row</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="CustomCSVDialect">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.CustomCSVDialect.html#actio_python_utils.utils.CustomCSVDialect">[docs]</a>
+<span class="k">class</span> <span class="nc">CustomCSVDialect</span><span class="p">(</span><span class="n">csv</span><span class="o">.</span><span class="n">Dialect</span><span class="p">):</span>
+    <span class="n">delimiter</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span>
+    <span class="n">escapechar</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span>
+    <span class="n">lineterminator</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">quotechar</span> <span class="o">=</span> <span class="s1">&#39;&quot;&#39;</span>
+    <span class="n">quoting</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">QUOTE_MINIMAL</span>
+    <span class="n">skipinitialspace</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">strict</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="check_valid_output_directory">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.check_valid_output_directory.html#actio_python_utils.utils.check_valid_output_directory">[docs]</a>
+<span class="k">def</span> <span class="nf">check_valid_output_directory</span><span class="p">(</span>
+    <span class="n">output_directory</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">create_directory</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check if the given directory is valid for outputting.</span>
+
+<span class="sd">    :param output_directory: The output directory to check</span>
+<span class="sd">    :param overwrite: Overwrite the directory if it exists already</span>
+<span class="sd">    :param create_directory: Create the directory</span>
+<span class="sd">    :raises NotImplementedError: If ``output_directory`` exists,</span>
+<span class="sd">        ``overwrite = True``, and ``output_directory`` is not a file or directory</span>
+<span class="sd">    :raises OSError: If ``output_directory`` exists and ``overwrite = False``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">output_directory</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_directory</span><span class="si">}</span><span class="s2"> already exists; deleting as overwrite was specified.&quot;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">output_directory</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">output_directory</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">output_directory</span><span class="p">):</span>
+                <span class="n">rmtree</span><span class="p">(</span><span class="n">output_directory</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_directory</span><span class="si">}</span><span class="s2"> exists and isn&#39;t a file or directory...?&quot;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_directory</span><span class="si">}</span><span class="s2"> already exists.&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">parent_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">output_directory</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">parent_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">parent_dir</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">create_directory</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">output_directory</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_csv_fields">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.get_csv_fields.html#actio_python_utils.utils.get_csv_fields">[docs]</a>
+<span class="k">def</span> <span class="nf">get_csv_fields</span><span class="p">(</span>
+    <span class="n">fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="p">,</span>
+    <span class="n">sanitize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">sanitize_with</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">((</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the column names from the first line of the specified file and</span>
+<span class="sd">    optionally replaces an arbitrary sequence of strings to others</span>
+
+<span class="sd">    :param fn: The path to the CSV to get column names from</span>
+<span class="sd">    :param sep: The field separator</span>
+<span class="sd">    :param sanitize: Whether to apply the string replacements in</span>
+<span class="sd">        ``sanitize_with``</span>
+<span class="sd">    :param sanitize_with: For each pair, replace the first string</span>
+<span class="sd">        with the second</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s2">&quot;rt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">sep</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">sanitize</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">,</span> <span class="n">old_new</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="o">*</span><span class="n">old_new</span><span class="p">),</span> <span class="n">sanitize_with</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span>
+        <span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">fields</span></div>
+
+
+
+<div class="viewcode-block" id="sync_to_s3">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.utils.sync_to_s3.html#actio_python_utils.utils.sync_to_s3">[docs]</a>
+<span class="k">def</span> <span class="nf">sync_to_s3</span><span class="p">(</span><span class="n">dir_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">s3_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Syncs a directory to specific S3 bucket/path.</span>
+
+<span class="sd">    :param dir_name: The directory to sync</span>
+<span class="sd">    :param s3_path: The S3 path to sync to</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s2">&quot;aws&quot;</span><span class="p">,</span> <span class="s2">&quot;s3&quot;</span><span class="p">,</span> <span class="s2">&quot;sync&quot;</span><span class="p">,</span> <span class="n">dir_name</span><span class="p">,</span> <span class="n">s3_path</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../history.html">History</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.utils</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>

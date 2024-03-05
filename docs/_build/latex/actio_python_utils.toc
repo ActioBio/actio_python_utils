@@ -1,0 +1,35 @@
+\babel@toc {english}{}\relax 
+\contentsline {chapter}{\numberline {1}Actio Python Utils}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Features}{1}{section.1.1}%
+\contentsline {chapter}{\numberline {2}Installation}{3}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Stable release}{3}{section.2.1}%
+\contentsline {section}{\numberline {2.2}From sources}{3}{section.2.2}%
+\contentsline {chapter}{\numberline {3}Usage}{5}{chapter.3}%
+\contentsline {chapter}{\numberline {4}API}{7}{chapter.4}%
+\contentsline {section}{\numberline {4.1}actio\_python\_utils}{7}{section.4.1}%
+\contentsline {subsection}{\numberline {4.1.1}actio\_python\_utils.actio\_python\_utils}{7}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.1.2}actio\_python\_utils.argparse\_functions}{7}{subsection.4.1.2}%
+\contentsline {subsection}{\numberline {4.1.3}actio\_python\_utils.cli}{8}{subsection.4.1.3}%
+\contentsline {subsection}{\numberline {4.1.4}actio\_python\_utils.database\_functions}{8}{subsection.4.1.4}%
+\contentsline {subsection}{\numberline {4.1.5}actio\_python\_utils.logging\_functions}{10}{subsection.4.1.5}%
+\contentsline {subsection}{\numberline {4.1.6}actio\_python\_utils.spark\_functions}{10}{subsection.4.1.6}%
+\contentsline {subsection}{\numberline {4.1.7}actio\_python\_utils.utils}{11}{subsection.4.1.7}%
+\contentsline {chapter}{\numberline {5}Contributing}{13}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Types of Contributions}{13}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}Report Bugs}{13}{subsection.5.1.1}%
+\contentsline {subsection}{\numberline {5.1.2}Fix Bugs}{13}{subsection.5.1.2}%
+\contentsline {subsection}{\numberline {5.1.3}Implement Features}{13}{subsection.5.1.3}%
+\contentsline {subsection}{\numberline {5.1.4}Write Documentation}{13}{subsection.5.1.4}%
+\contentsline {subsection}{\numberline {5.1.5}Submit Feedback}{14}{subsection.5.1.5}%
+\contentsline {section}{\numberline {5.2}Get Started!}{14}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Pull Request Guidelines}{15}{section.5.3}%
+\contentsline {section}{\numberline {5.4}Tips}{15}{section.5.4}%
+\contentsline {section}{\numberline {5.5}Deploying}{15}{section.5.5}%
+\contentsline {chapter}{\numberline {6}Credits}{17}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Development Lead}{17}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Contributors}{17}{section.6.2}%
+\contentsline {chapter}{\numberline {7}History}{19}{chapter.7}%
+\contentsline {section}{\numberline {7.1}0.1.0 (2023\sphinxhyphen {}06\sphinxhyphen {}21)}{19}{section.7.1}%
+\contentsline {chapter}{\numberline {8}Indices and tables}{21}{chapter.8}%
+\contentsline {chapter}{Python Module Index}{23}{section*.4}%
+\contentsline {chapter}{Index}{25}{section*.5}%

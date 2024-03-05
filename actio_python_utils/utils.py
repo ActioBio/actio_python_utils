@@ -30,10 +30,9 @@ logger = logging.getLogger(__name__)
 
 def coalesce(*args) -> Any:
     """
-    Return the first argument that is not None
+    Return the first argument that is not ``None``
 
     :return: The first defined value
-    :rtype: Any
     """
     for item in args:
         if item is not None:
@@ -47,11 +46,11 @@ def flatten_cfg(
     """
     Flatten a nested value in a dict
 
-    :param Hashable key: The key corresponding to the value to flatten
-    :param MutableMapping d: The dict to use, defaults to cfg
-    :param str sep: The value to join key with its nested values, defaults to
-        "."
-    :raises TypeError: If d[key] is not either a dict or list
+    :param key: The key corresponding to the value to flatten
+    :param d: The dict to use
+    :param sep: The value to join key with its nested values
+    :raises TypeError: If ``d[key]`` is not either a :class:`dict` or
+        :class:`list`
     """
     if key not in d:
         raise KeyError(f"{key} isn't a valid key in {d}.")
@@ -90,10 +89,9 @@ def rename_dict_keys(
     Returns a new dict that's a copy of the supplied dict but with an arbitrary
     number of keys renamed
 
-    :param Mapping original_dict: The dict to rename keys in
-    :param Iterable renames: A list of pairs of key names, [old, new]
+    :param original_dict: The dict to rename keys in
+    :param renames: A list of pairs of key names, ``[old, new]``
     :return: A dict with relabelled keys
-    :rtype: dict
     """
     d = original_dict.copy()
     for old, new in renames:
@@ -109,9 +107,8 @@ def cast_chromosome_to_int(chromosome: str) -> int:
     Cast a chromosome string, optionally prefixed with chr, to an integer.
     X -> 23, Y -> 24, M/MT -> 25.  Failures will be returned as None
 
-    :param str chromosome: The chromosome to cast
+    :param chromosome: The chromosome to cast
     :return: The integer version of the chromosome
-    :rtype: int
     """
     chromosome = chromosome.removeprefix("chr")
     if chromosome == "X":
@@ -130,18 +127,17 @@ def cast_chromosome_to_int(chromosome: str) -> int:
 class DictToFunc(object):
     """
     Class that after initializing with a dict can be called to map keys to
-    values, e.g.
-    ```
-    D = DictToFunc({"a": 42, "b": "apple"})
-    D("a")
-    42
-    D("b")
-    "apple"
-    D("c")
-    KeyError("c")
-    ```
+    values, e.g.::
 
-    :param dict choices: The dict to map keys to values
+        > D = DictToFunc({"a": 42, "b": "apple"})
+        > D("a")
+        42
+        > D("b")
+        apple
+        > D("c")
+        KeyError("c")
+
+    :param choices: The dict to map keys to values
     """
 
     def __init__(self, choices: dict[Hashable, Any]):
@@ -149,11 +145,10 @@ class DictToFunc(object):
 
     def __call__(self, key: Hashable) -> Any:
         """
-        Returns the value in self.choices from key
+        Returns the value in ``self.choices`` for  ``key``
 
-        :param Hashable key: The dict key
-        :return: self.choices[key]
-        :rtype: Any
+        :param key: The dict key
+        :return: ``self.choices[key]``
         """
         return self.choices[key]
 
@@ -163,13 +158,11 @@ class NumericValue(object):
     Creates a class that can be used as a function to verify that a passed
     argument is a numeric value of the correct type and in the expected range
 
-    :param Real min_value: Minimum value to compare to, defaults to -math.inf
-    :param Real max_value: Maximum value to compare to, defaults to math.inf
-    :param Callable left_op: Compare with left_op(min_value, value), defaults to
-        operator.le
-    :param Callable right_op: Compare with right_op(value, max_value), defaults
-        to operator.lt
-    :param Real var_type: The type of value to cast to, defaults to int
+    :param min_value: Minimum value to compare to
+    :param max_value: Maximum value to compare to
+    :param left_op: Compare with  ``min_value left_op value``
+    :param right_op: Compare with ``value right_op max_value``
+    :param var_type: The type of value to cast to
     """
 
     def __init__(
@@ -188,15 +181,14 @@ class NumericValue(object):
 
     def __call__(self, arg: Real) -> Real:
         """
-        Returns self.var_type(arg) if this is valid,
-        self.left_op(self.min_value, self.var_type(arg)) &
-        self.right_op(self.var_type(arg), self.max_value)
+        Returns ``self.var_type(arg)`` if this is valid,
+        ``self.left_op(self.min_value, self.var_type(arg))`` &
+        ``self.right_op(self.var_type(arg), self.max_value)``
 
-        :param arg Real: the value to test
+        :param arg: the value to test
         :raises ValueError: If arg cannot be cast to the desired type or if it
             is not in the expected range
-        :return: self.var_type(arg) if possible and in the proper range
-        :rtype: Real
+        :return: ``self.var_type(arg)`` if possible and in the proper range
         """
         try:
             value = self.var_type(arg)
@@ -212,9 +204,8 @@ def timer(func: Callable[[...], Any]) -> Callable[[...], Any]:
     """
     Wraps a function to output the running time of function calls.
 
-    :param Callable func: The function to wrap
+    :param func: The function to wrap
     :return: The wrapped function
-    :rtype: Callable
     """
 
     @wraps(func)
@@ -234,9 +225,8 @@ def debug(func: Callable[[...], Any]) -> Callable[[...], Any]:
     Wraps a function to output the function signature, run the function,
     output the return value, and return the return value.
 
-    :param Callable func: The function to wrap
+    :param func: The function to wrap
     :return: The wrapped function
-    :rtype: Callable
     """
 
     @wraps(func)
@@ -254,9 +244,8 @@ def debug(func: Callable[[...], Any]) -> Callable[[...], Any]:
 
 def which(program: str) -> Optional[str]:
     """
-    :param str program: The program to find
+    :param program: The program to find
     :return: The path to the program if location, None otherwise
-    :rtype: str or None
     """
 
     def is_exe(fpath):
@@ -277,12 +266,11 @@ def which(program: str) -> Optional[str]:
 
 def open_pipe(command: str, mode: str = "r", buff: int = 1024 * 1024) -> None:
     """
-    Runs a subprocess.Popen and either retains input or output
+    Runs a :class:`subprocess.Popen` and either retains input or output
 
-    :param str command: The command to execute
-    :param str mode: The mode with which to handle process, "r" = read, "w" =
-        write, defaults to "r"
-    :param int buff: Buffer size
+    :param command: The command to execute
+    :param mode: The mode with which to handle process, "r" = read, "w" = write
+    :param buff: Buffer size
     """
     text = "b" not in mode
     if "r" in mode:
@@ -315,12 +303,13 @@ def open_bz2(
     filename: str, mode: str = "r", buff: int = 1024 * 1024, external: int = PARALLEL
 ) -> Optional[_io.TextIOWrapper]:
     """
-    Return a file handle to filename using pbzip2, bzip2, or b2 module
+    Return a file handle to filename using ``pbzip2``, ``bzip2``, or ``b2``
+    module
 
-    :param str filename: The filename to open
-    :param str mode: The mode with which to open, defaults to "r"
-    :param int buff: Buffer size, defaults to 1024 * 1024
-    :param int external: External code
+    :param filename: The filename to open
+    :param mode: The mode with which to open
+    :param buff: Buffer size
+    :param external: External code
     """
     if external is None or external == NORMAL:
         return bz2.open(filename, mode, buff)
@@ -345,12 +334,12 @@ def open_gz(
     filename: str, mode: str = "r", buff: int = 1024 * 1024, external: int = PARALLEL
 ) -> Optional[_io.TextIOWrapper]:
     """
-    Return a file handle to filename using pigz, gzip, or gzip module
+    Return a file handle to filename using ``pigz``, ``gzip``, or ``gzip`` module
 
-    :param str filename: The filename to open
-    :param str mode: The mode with which to open, defaults to "r"
-    :param int buff: Buffer size, defaults to 1024 * 1024
-    :param int external: External code
+    :param filename: The filename to open
+    :param mode: The mode with which to open
+    :param buff: Buffer size
+    :param external: External code
     """
     if external is None or external == NORMAL:
         return gzip.open(filename, mode)
@@ -375,12 +364,12 @@ def open_xz(
     filename: str, mode: str = "r", buff: int = 1024 * 1024, external: int = PARALLEL
 ) -> Optional[_io.TextIOWrapper]:
     """
-    Return a file handle to filename using either xz or lzma module
+    Return a file handle to filename using either ``xz`` or ``lzma`` module
 
-    :param str filename: The filename to open
-    :param str mode: The mode with which to open, defaults to "r"
-    :param int buff: Buffer size, defaults to 1024 * 1024
-    :param int external: External code
+    :param filename: The filename to open
+    :param mode: The mode with which to open
+    :param buff: Buffer size
+    :param external: External code
     """
     if external is None or external == NORMAL:
         return lzma.open(filename, mode)
@@ -402,18 +391,16 @@ def zopen(
     """
     Open pipe, zipped, or unzipped file automagically
 
-    # external == 0: normal zip libraries
-    # external == 1: (zcat, gzip, xz) or (bzcat, bzip2)
-    # external == 2: (pigz -dc, pigz) or (pbzip2 -dc, pbzip2)
+    |  ``external == 0``: normal zip libraries
+    |  ``external == 1``: (zcat, gzip, xz) or (bzcat, bzip2)
+    |  ``external == 2``: (pigz -dc, pigz) or (pbzip2 -dc, pbzip2)
 
-    :param str filename: The filename to open
-    :param str mode: The mode with which to open the file handle, defaults to
-        "r"
-    :param int buff: Buffer size, defaults to 1024 * 1024
-    :param int external: External process code usage, defaults to PARALLEL
+    :param filename: The filename to open
+    :param mode: The mode with which to open the file handle
+    :param buff: Buffer size
+    :param external: External process code usage
     :raises ValueError: If "r" and "w" in mode or neither in mode
     :return: The opened file handle
-    :rtype: _io.TextIOWrapper
     """
     if "r" in mode == "w" in mode:
         raise ValueError("r or w must be in mode and not both")
@@ -438,26 +425,23 @@ def extract_excel_sheet(
     replacement_patterns: Optional[Mapping[str, str]] = {},
     **kwargs,
 ) -> None:
-    """
+    r"""
     Extract a sheet from an Excel spreadsheet.
 
-    :param str fn: The spreadsheet filename
-    :param str output_fn: The output filename
-    :param str sheet: The sheet name to extract, defaults to "Sheet1"
-    :param int skip_nlines: Skip this many lines, defaults to 0
-    :param comment_prefix: Skip each line that begins with this string,
-        defaults to None
-    :type comment_prefix: str or None
+    :param fn: The spreadsheet filename
+    :param output_fn: The output filename
+    :param sheet: The sheet name to extract
+    :param skip_nlines: Skip this many lines
+    :param comment_prefix: Skip each line that begins with this string
     :param replacement_patterns: A mapping of patterns to replace; each key will
-        be replaced by its value, defaults to {}
-    :type replacement_patterns: Mapping or None
-    :param **kwargs: Any keyword arguments to pass to csv.writer
+        be replaced by its value
+    :param \**kwargs: Any keyword arguments to pass to csv.writer
     """
     import openpyxl
 
     if replacement_patterns:
-        replacement_func = (
-            lambda x: ""
+        replacement_func = lambda x: (
+            ""
             if x is None
             else reduce(
                 lambda y, pattern_repl: re.sub(pattern_repl[0], pattern_repl[1], y),
@@ -495,13 +479,12 @@ def check_valid_output_directory(
     """
     Check if the given directory is valid for outputting.
 
-    :param str output_directory: The output directory to check
-    :param bool overwrite: Overwrite the directory if it exists already,
-        defaults to False
-    :param bool create_directory: Create the directory, defaults to False
-    :raises NotImplementedError: If output_directory exists, overwrite is True,
-        and output_directory is not a file or directory
-    :raises OSError: If output_directory exists and overwrite is not specified
+    :param output_directory: The output directory to check
+    :param overwrite: Overwrite the directory if it exists already
+    :param create_directory: Create the directory
+    :raises NotImplementedError: If ``output_directory`` exists,
+        ``overwrite = True``, and ``output_directory`` is not a file or directory
+    :raises OSError: If ``output_directory`` exists and ``overwrite = False``
     """
     if os.path.exists(output_directory):
         if overwrite:
@@ -536,12 +519,12 @@ def get_csv_fields(
     Get the column names from the first line of the specified file and
     optionally replaces an arbitrary sequence of strings to others
 
-    :param str fn: The path to the CSV to get column names from
-    :param str sep: The field separator, defaults to ","
-    :param bool sanitize: Whether to apply the string replacements in
-        sanitize_with, defaults to False
-    :param Iterable sanitize_with: For each pair, replace the first string
-        with the second, defaults to ((".", "_"), ("-", "_"))
+    :param fn: The path to the CSV to get column names from
+    :param sep: The field separator
+    :param sanitize: Whether to apply the string replacements in
+        ``sanitize_with``
+    :param sanitize_with: For each pair, replace the first string
+        with the second
     """
     with zopen(fn, "rt") as fh:
         fields = next(fh).rstrip("\n").split(sep)
@@ -553,11 +536,12 @@ def get_csv_fields(
     else:
         return fields
 
+
 def sync_to_s3(dir_name: str, s3_path: str) -> None:
     """
     Syncs a directory to specific S3 bucket/path.
 
-    :param str dir_name: The directory to sync
-    :param str s3_path: The S3 path to sync to
+    :param dir_name: The directory to sync
+    :param s3_path: The S3 path to sync to
     """
     subprocess.run(["aws", "s3", "sync", dir_name, s3_path], check=True)

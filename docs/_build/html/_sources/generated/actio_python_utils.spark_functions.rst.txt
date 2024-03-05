@@ -1,0 +1,44 @@
+actio\_python\_utils.spark\_functions
+=====================================
+
+.. automodule:: actio_python_utils.spark_functions
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+   
+      convert_chromosome
+      convert_dicts_to_dataframe
+      count_columns_with_string
+      count_distinct_values
+      count_nulls
+      load_dataframe
+      load_db_to_dataframe
+      load_excel_to_dataframe
+      load_xml_to_dataframe
+      serialize_array_field
+      serialize_bool_field
+      serialize_field
+      serialize_string_field
+      serialize_struct_field
+      setup_spark
+      split_dataframe_to_csv_by_column_value
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

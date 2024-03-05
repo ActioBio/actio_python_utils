@@ -1,6 +1,7 @@
 """
 Spark-related functionality.
 """
+
 import logging
 import os
 import pgtoolkit.pgpass
@@ -43,42 +44,25 @@ def setup_spark(
     """
     Configures and creates a PySpark session according to the supplied arguments
 
-    :param cores: The number of cores to configure PySpark with, defaults to
-        cfg["spark"]["cores"]
-    :type cores: int or str or None
-    :param str memory: The amount of memory to configure PySpark with, defaults
-        to cfg["spark"]["memory"]
-    :param bool use_db: Configure PySpark to be able to query a database via
-        JDBC, defaults to False
-    :param bool use_excel: Configure PySpark to be able to parse Excel
-        spreadsheets, defaults to False
-    :param bool use_glow: Configure PySpark to use glow (e.g. to parse a VCF),
-        defaults to False
-    :param bool use_xml: Configure PySpark to be able to parse XML files,
-        defaults to False
-    :param bool show_console_progress: Configure PySpark to show console
-        progress, default to True
-    :param extra_options: Any additional options to configure PySpark with,
-        defaults to None
-    :type extra_options: Iterable or None
-    :param extra_packages: Any additional packages for PySpark to load, defaults
-        to None
-    :type extra_packages: Iterable or None
-    :param str postgresql_jdbc: The path to the PostgreSQL JDBC jar for use if
-        use_db is specified, defaults to cfg["spark"]["jdbc"]
-    :param str excel_package: The name of the package PySpark needs to parse
-        Excel spreadsheets, defaults to cfg["spark"]["packages"]["excel"]
-    :param str glow_codec: The name of the codec PySpark needs to load glow,
-        defaults to cfg["spark"]["codecs"]["glow"]
-    :param str glow_package: The name of the package PySpark needs to load
-        glow, defaults to cfg["spark"]["packages"]["glow"]
-    :param str xml_package: The name of the package PySpark needs to parse XML
-        files, defaults to cfg["spark"]["packages"]["xml"]
-    :param spark_logging_level: The logging level to configure py4j and pyspark
-        with, defaults to logging.ERROR
-    :type spark_logging_level: int or str or None
+    :param cores: The number of cores to configure PySpark with
+    :param memory: The amount of memory to configure PySpark with
+    :param use_db: Configure PySpark to be able to query a database via JDBC
+    :param use_excel: Configure PySpark to be able to parse Excel
+        spreadsheets
+    :param use_glow: Configure PySpark to use glow (e.g. to parse a VCF)
+    :param use_xml: Configure PySpark to be able to parse XML files
+    :param show_console_progress: Configure PySpark to show console progress
+    :param extra_options: Any additional options to configure PySpark with
+    :param extra_packages: Any additional packages for PySpark to load
+    :param postgresql_jdbc: The path to the PostgreSQL JDBC jar for use if
+        use_db is specified
+    :param excel_package: The name of the package PySpark needs to parse
+        Excel spreadsheets
+    :param glow_codec: The name of the codec PySpark needs to load glow
+    :param glow_package: The name of the package PySpark needs to load glow
+    :param xml_package: The name of the package PySpark needs to parse XML files
+    :param spark_logging_level: The logging level to configure py4j and pyspark with
     :return: The configured PySpark session
-    :rtype: SparkSession
     """
     logging.getLogger("py4j").setLevel(spark_logging_level)
     logging.getLogger("pyspark").setLevel(spark_logging_level)
@@ -117,18 +101,15 @@ def load_dataframe(
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
 ) -> DataFrame:
-    """
+    r"""
     Load and return the specified data source using PySpark
 
-    :param SparkSession self: The PySpark session to use
-    :param str path: The path to the data source to load
-    :param str format: The format of the data source, defaults to "parquet"
-    :param load_config_options: Any additonal config options to load data,
-        defaults to None
-    :type load_config_options: Iterable or None
-    :params **kwargs: Any additional named arguments
+    :param self: The PySpark session to use
+    :param path: The path to the data source to load
+    :param format: The format of the data source
+    :param load_config_options: Any additonal config options to load data
+    :params \**kwargs: Any additional named arguments
     :return: The dataframe requested
-    :rtype: DataFrame
     """
     load_func = self.read.format(format)
     if load_config_options:
@@ -150,21 +131,16 @@ def load_xml_to_dataframe(
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
 ) -> DataFrame:
-    """
+    r"""
     Load and return the specified XML file with PySpark
 
-    :param SparkSession self: The PySpark session to use
-    :param str xml_fn: The path to the data source to load
-    :param str row_tag: The XML tag that delimits records
-    :param schema: The path to an optional XSD schema to validate records,
-        defaults to None
-    :type schema: str or None
-    :param load_config_options: Any additonal config options to load data,
-        defaults to None
-    :type load_config_options: Iterable or None
-    :param **kwargs: Any additional named arguments
+    :param self: The PySpark session to use
+    :param xml_fn: The path to the data source to load
+    :param row_tag: The XML tag that delimits records
+    :param schema: The path to an optional XSD schema to validate records
+    :param load_config_options: Any additonal config options to load data
+    :param \**kwargs: Any additional named arguments
     :return: The dataframe requested
-    :rtype: DataFrame
     """
     if load_config_options is None:
         load_config_options = []
@@ -190,23 +166,16 @@ def load_db_to_dataframe(
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
 ) -> DataFrame:
-    """
+    r"""
     Return a PySpark dataframe from either a relation or query
 
-    :param SparkSession self: The PySpark session to use
-    :param pgpass_record: PostgreSQL login credentials, defaults to getting the
-        data from get_pg_config()
-    :type pgpass_record: pgtoolkit.pgpass.PassEntry or None
-    :param relation: The database relation to load, defaults to None
-    :type relation: str or None
-    :param query: The database query to load, defaults to None
-    :type query: str or None
-    :param load_config_options: Any additonal config options to load data,
-        defaults to None
-    :type load_config_options: Iterable or None
-    :param **kwargs: Any additional named arguments
+    :param self: The PySpark session to use
+    :param pgpass_record: PostgreSQL login credentials
+    :param relation: The database relation to load
+    :param query: The database query to load
+    :param load_config_options: Any additonal config options to load data
+    :param \**kwargs: Any additional named arguments
     :return: The dataframe requested
-    :rtype: DataFrame
     """
     if relation is None == query is None:
         raise ValueError(f"Specify relation or query and not both.")
@@ -239,19 +208,15 @@ def load_excel_to_dataframe(
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
 ) -> DataFrame:
-    """
+    r"""
     Load and return the specified Excel spreadsheet with PySpark
 
-    :param SparkSession self: The PySpark session to use
-    :param str xl_fn: The path to the data source to load
-    :param bool header: Whether the data source has a header or not, defaults to
-        True
-    :param load_config_options: Any additonal config options to load data,
-        defaults to None
-    :type load_config_options: Iterable or None
-    :param **kwargs: Any additional named arguments
+    :param self: The PySpark session to use
+    :param xl_fn: The path to the data source to load
+    :param header: Whether the data source has a header or not
+    :param load_config_options: Any additonal config options to load data
+    :param \**kwargs: Any additional named arguments
     :return: The dataframe requested
-    :rtype: DataFrame
     """
     if load_config_options is None:
         load_config_options = []
@@ -293,17 +258,15 @@ def split_dataframe_to_csv_by_column_value(
     col2,col3
     1,1
 
-    :param DataFrame self: The dataframe to use
-    :param str column_to_split_on: The column name to split on
-    :param str output_directory: The directory to output to
-    :param str filename_format: Filename convention to use; use {column_value} to
-        refer to the split column's value. Defaults to "{column_value}"
-    :param bool include_header: Whether to include a header in each output file,
-        defaults to True
-    :param bool overwrite: Overwrite existing directory it if already exists,
-        defaults to True
-    :param bool include_split_column_in_new_files: Whether to include the column
-        that was used to split in the resulting files, defaults to False
+    :param self: The dataframe to use
+    :param column_to_split_on: The column name to split on
+    :param output_directory: The directory to output to
+    :param filename_format: Filename convention to use; use ``{column_value}``
+        to refer to the split column's value
+    :param include_header: Whether to include a header in each output file
+    :param overwrite: Overwrite existing directory it if already exists
+    :param include_split_column_in_new_files: Whether to include the column
+        that was used to split in the resulting files
     """
     if include_header:
         cols = self.columns
@@ -358,16 +321,14 @@ def convert_chromosome(
     self: DataFrame, current_column_name: str, new_column_name: Optional[str] = None
 ) -> DataFrame:
     """
-    Return a PySpark dataframe with current_column_name (containing human
-    chromosomes) with a new column, new_column_name (defaulting to overwriting
-    the original), with the chromosome cast as an integer.
+    Return a PySpark dataframe with ``current_column_name`` (containing human
+    chromosomes) with a new column, ``new_column_name`` (defaulting to
+    overwriting the original), with the chromosome cast as an integer.
 
-    :param DataFrame self: The dataframe to use
-    :param str current_column_name: The column name to cast
+    :param self: The dataframe to use
+    :param current_column_name: The column name to cast
     :param new_column_name: The new column name to use
-    :type new_column_name: str or None
     :return: The processed dataframe
-    :rtype: DataFrame
     """
     if not new_column_name:
         new_column_name = current_column_name
@@ -384,9 +345,8 @@ def count_nulls(
     Return a PySpark dataframe with the number of null values in each column of
     a dataframe
 
-    :param DataFrame self: The dataframe to summarize
+    :param self: The dataframe to summarize
     :return: The new dataframe with null counts per column
-    :rtype: DataFrame
     """
     return self.select(
         [F.count(F.when(F.isnull(col), col)).alias(col) for col in self.columns]
@@ -401,10 +361,9 @@ def count_columns_with_string(self: DataFrame, string: str = "|") -> DataFrame:
     Return a PySpark dataframe with the number of times a given string occurs
     in each string column in a dataframe
 
-    :param DataFrame self: The dataframe to summarize
-    :param str string: The string to search for, defaults to "|"
+    :param self: The dataframe to summarize
+    :param string: The string to search for
     :return: The new dataframe with counts per column
-    :rtype: DataFrame
     """
     return self.select(
         [
@@ -425,16 +384,14 @@ def count_distinct_values(
 ) -> DataFrame:
     """
     Return a new PySpark dataframe with the number of distinct values in each
-    column.  Uses count_distinct by default and approx_count_distinct if
-    approximate == True
+    column.  Uses :func:`pyspark.sql.functions.count_distinct` by default and
+    :func:`pyspark.sql.functions.approx_count_distinct` if
+    ``approximate == True``
 
-    :param DataFrame self: The dataframe to summarize
-    :param Container columns_to_ignore: An optional set of columns to not
-        summarize, defaults to set()
-    :param bool approximate: Get approximate counts instead of exact (faster),
-        defaults to False
+    :param self: The dataframe to summarize
+    :param columns_to_ignore: An optional set of columns to not summarize
+    :param bool approximate: Get approximate counts instead of exact (faster)
     :return: The new dataframe with counts of distinct values per column
-    :rtype: DataFrame
     """
     func = F.approx_count_distinct if approximate else F.count_distinct
     return self.agg(
@@ -456,20 +413,16 @@ def convert_dicts_to_dataframe(
     coerce_to_lists_if_needed: bool = True,
 ) -> DataFrame:
     """
-    Converts either a list of dicts (dict_list) or a function that returns an
-    iterator of dicts (iter_func) to a PySpark dataframe
+    Converts either a list of dicts (``dict_list``) or a function that returns
+    an iterator of dicts (``iter_func``) to a PySpark dataframe
 
-    :param SparkSession self: The SparkSession to use
-    :param dict_list: An list of dicts representing rows, defaults to None
-    :type dict_list: Iterable or None
-    :param iter_func: A function that returns an iterator of dicts representing
-        rows, defaults to None
-    :type iter_func: Callable or None
-    :param bool coerce_to_lists_if_needed: For any column to create, check if any
+    :param self: The SparkSession to use
+    :param dict_list: A list of dicts representing rows
+    :param iter_func: A function that returns an iterator of dicts representing rows
+    :param coerce_to_lists_if_needed: For any column to create, check if any
         value in a row is a list, and if so, convert any non-lists in the
-        column to a list, defaults to True
+        column to a list
     :return: A new dataframe built from the provided rows of dicts
-    :rtype: DataFrame
     """
     if dict_list and iter_func:
         raise ValueError("Only one of dict_list or iter_func should be specified.")
@@ -508,18 +461,16 @@ def serialize_array_field(
     struct_columns_to_use: Optional[Container] = None,
 ) -> DataFrame:
     """
-    Serializes an ArrayType field for output.
+    Serializes a ``pyspark.sql.types.ArrayType`` field for output.
 
-    :param DataFrame self: The dataframe to use
-    :param str column: The name of the column to serialize
-    :param str new_column: The name to give the new serialized column
-    :param pyspark.sql.types.ArrayType dtype: The column definition
+    :param self: The dataframe to use
+    :param column: The name of the column to serialize
+    :param new_column: The name to give the new serialized column
+    :param dtype: The column definition
     :param struct_columns_to_use: A set of struct values to use (assuming column
-        is a struct), defaults to None
-    :type struct_columns_to_use: Container or None
+        is a struct)
     :raises NotImplementedError: If the type in the array is a nested struct
     :return: A new dataframe with the serialized column
-    :rtype: DataFrame
     """
     subtype = type(dtype.elementType)
     if subtype is stypes.StringType:
@@ -608,13 +559,12 @@ DataFrame.serialize_array_field = serialize_array_field
 
 def serialize_bool_field(self: DataFrame, column: str, new_column: str) -> DataFrame:
     """
-    Serializes a BooleanType field for output.
+    Serializes a :class:`pyspark.sql.types.BooleanType` field for output.
 
-    :param DataFrame self: The dataframe to use
-    :param str column: The name of the column to serialize
+    :param self: The dataframe to use
+    :param column: The name of the column to serialize
     :param new_column: The name to give the new serialized column
     :return: A new dataframe with the serialized column
-    :rtype: DataFrame
     """
     return self.withColumn(
         new_column,
@@ -629,13 +579,12 @@ DataFrame.serialize_bool_field = serialize_bool_field
 
 def serialize_string_field(self: DataFrame, column: str, new_column: str) -> DataFrame:
     """
-    Serializes a StringType field for output.
+    Serializes a :class:`pyspark.sql.types.StringType` field for output.
 
-    :param DataFrame self: The dataframe to use
-    :param str column: The name of the column to serialize
+    :param self: The dataframe to use
+    :param column: The name of the column to serialize
     :param new_column: The name to give the new serialized column
     :return: A new dataframe with the serialized column
-    :rtype: DataFrame
     """
     # escape \t, \n, and \r
     return self.withColumn(
@@ -657,18 +606,16 @@ def serialize_struct_field(
     struct_columns_to_use: Optional[Container] = None,
 ) -> DataFrame:
     """
-    Serializes a StructType field for output.
+    Serializes a :class:`pyspark.sql.types.StructType` field for output.
 
-    :param DataFrame self: The dataframe to use
-    :param str column: The name of the column to serialize
+    :param self: The dataframe to use
+    :param column: The name of the column to serialize
     :param new_column: The name to give the new serialized column
-    :param pyspark.sql.types.StructType dtype: The column definition
+    :param dtype: The column definition
     :param struct_columns_to_use: A set of struct values to use (assuming column
-        is a struct), defaults to None
-    :type struct_columns_to_use: Container or None
+        is a struct)
     :raises NotImplementedError: If the type in the array is an array or struct
     :return: A new dataframe with the serialized column
-    :rtype: DataFrame
     """
     # will create a function to convert each element of the struct
     funcs = {}
@@ -746,20 +693,17 @@ def serialize_field(
     structs, or any array of either of those (but not nested) to the properly
     formatted string for postgresql TEXT loading format and assigns it the
     column name new_column.
-    If new_column is not specified, the original column will be overwritten.
-    N.B. All string types should be StringType as opposed to CharType or
-    VarcharType.
+    If ``new_column`` is not specified, the original column will be overwritten.
+    N.B. All string types should be :class:`pyspark.sql.types.StringType` as
+    opposed to :class:`pyspark.sql.typesCharType` or
+    :class:`pyspark.sql.types.VarcharType`.
 
-    :param DataFrame self: The dataframe to use
-    :param str column: The name of the column to serialize
-    :param new_column: The name to give the new serialized column, defaults to
-        None
-    :type new_column: str or None
+    :param self: The dataframe to use
+    :param column: The name of the column to serialize
+    :param new_column: The name to give the new serialized column
     :param struct_columns_to_use: A set of struct values to use (assuming column
-        is a struct), defaults to None
-    :type struct_columns_to_use: Container or None
+        is a struct)
     :return: A new dataframe replacing original column with a serialized one
-    :rtype: DataFrame
     """
     if new_column:
         drop = ""

@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>psycopg2.extras &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b76e3c8a" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=12dfc556" />
+    <script src="../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for psycopg2.extras</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Miscellaneous goodies for psycopg2</span>
+
+<span class="sd">This module is a generic place used to hold little helper functions</span>
+<span class="sd">and classes until a better place in the distribution is found.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># psycopg/extras.py - miscellaneous extra goodies for psycopg</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2003-2019 Federico Di Gregorio  &lt;fog@debian.org&gt;</span>
+<span class="c1"># Copyright (C) 2020-2021 The Psycopg Team</span>
+<span class="c1">#</span>
+<span class="c1"># psycopg2 is free software: you can redistribute it and/or modify it</span>
+<span class="c1"># under the terms of the GNU Lesser General Public License as published</span>
+<span class="c1"># by the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># In addition, as a special exception, the copyright holders give</span>
+<span class="c1"># permission to link this program with the OpenSSL library (or with</span>
+<span class="c1"># modified versions of OpenSSL that use the same license as OpenSSL),</span>
+<span class="c1"># and distribute linked combinations including the two.</span>
+<span class="c1">#</span>
+<span class="c1"># You must obey the GNU Lesser General Public License in all respects for</span>
+<span class="c1"># all of the code used other than OpenSSL.</span>
+<span class="c1">#</span>
+<span class="c1"># psycopg2 is distributed in the hope that it will be useful, but WITHOUT</span>
+<span class="c1"># ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span>
+<span class="c1"># FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public</span>
+<span class="c1"># License for more details.</span>
+
+<span class="kn">import</span> <span class="nn">os</span> <span class="k">as</span> <span class="nn">_os</span>
+<span class="kn">import</span> <span class="nn">time</span> <span class="k">as</span> <span class="nn">_time</span>
+<span class="kn">import</span> <span class="nn">re</span> <span class="k">as</span> <span class="nn">_re</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span><span class="p">,</span> <span class="n">OrderedDict</span>
+
+<span class="kn">import</span> <span class="nn">logging</span> <span class="k">as</span> <span class="nn">_logging</span>
+
+<span class="kn">import</span> <span class="nn">psycopg2</span>
+<span class="kn">from</span> <span class="nn">psycopg2</span> <span class="kn">import</span> <span class="n">extensions</span> <span class="k">as</span> <span class="n">_ext</span>
+<span class="kn">from</span> <span class="nn">.extensions</span> <span class="kn">import</span> <span class="n">cursor</span> <span class="k">as</span> <span class="n">_cursor</span>
+<span class="kn">from</span> <span class="nn">.extensions</span> <span class="kn">import</span> <span class="n">connection</span> <span class="k">as</span> <span class="n">_connection</span>
+<span class="kn">from</span> <span class="nn">.extensions</span> <span class="kn">import</span> <span class="n">adapt</span> <span class="k">as</span> <span class="n">_A</span><span class="p">,</span> <span class="n">quote_ident</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
+
+<span class="kn">from</span> <span class="nn">psycopg2._psycopg</span> <span class="kn">import</span> <span class="p">(</span>                             <span class="c1"># noqa</span>
+    <span class="n">REPLICATION_PHYSICAL</span><span class="p">,</span> <span class="n">REPLICATION_LOGICAL</span><span class="p">,</span>
+    <span class="n">ReplicationConnection</span> <span class="k">as</span> <span class="n">_replicationConnection</span><span class="p">,</span>
+    <span class="n">ReplicationCursor</span> <span class="k">as</span> <span class="n">_replicationCursor</span><span class="p">,</span>
+    <span class="n">ReplicationMessage</span><span class="p">)</span>
+
+
+<span class="c1"># expose the json adaptation stuff into the module</span>
+<span class="kn">from</span> <span class="nn">psycopg2._json</span> <span class="kn">import</span> <span class="p">(</span>                                <span class="c1"># noqa</span>
+    <span class="n">json</span><span class="p">,</span> <span class="n">Json</span><span class="p">,</span> <span class="n">register_json</span><span class="p">,</span> <span class="n">register_default_json</span><span class="p">,</span> <span class="n">register_default_jsonb</span><span class="p">)</span>
+
+
+<span class="c1"># Expose range-related objects</span>
+<span class="kn">from</span> <span class="nn">psycopg2._range</span> <span class="kn">import</span> <span class="p">(</span>                               <span class="c1"># noqa</span>
+    <span class="n">Range</span><span class="p">,</span> <span class="n">NumericRange</span><span class="p">,</span> <span class="n">DateRange</span><span class="p">,</span> <span class="n">DateTimeRange</span><span class="p">,</span> <span class="n">DateTimeTZRange</span><span class="p">,</span>
+    <span class="n">register_range</span><span class="p">,</span> <span class="n">RangeAdapter</span><span class="p">,</span> <span class="n">RangeCaster</span><span class="p">)</span>
+
+
+<span class="c1"># Expose ipaddress-related objects</span>
+<span class="kn">from</span> <span class="nn">psycopg2._ipaddress</span> <span class="kn">import</span> <span class="n">register_ipaddress</span>          <span class="c1"># noqa</span>
+
+
+<span class="k">class</span> <span class="nc">DictCursorBase</span><span class="p">(</span><span class="n">_cursor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for all dict-like cursors.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s1">&#39;row_factory&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">row_factory</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;row_factory&#39;</span><span class="p">]</span>
+            <span class="k">del</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;row_factory&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;DictCursorBase can&#39;t be instantiated without a row factory.&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">row_factory</span> <span class="o">=</span> <span class="n">row_factory</span>
+
+    <span class="k">def</span> <span class="nf">fetchone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_build_index</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">fetchmany</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchmany</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_build_index</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchmany</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">fetchall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_build_index</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">()</span>
+                <span class="n">first</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_build_index</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">()</span>
+                <span class="n">first</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+
+            <span class="k">yield</span> <span class="n">first</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="nb">next</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">return</span>
+
+
+<span class="k">class</span> <span class="nc">DictConnection</span><span class="p">(</span><span class="n">_connection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A connection that uses `DictCursor` automatically.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;cursor_factory&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor_factory</span> <span class="ow">or</span> <span class="n">DictCursor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">DictCursor</span><span class="p">(</span><span class="n">DictCursorBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A cursor that keeps a list of column name -&gt; index mappings__.</span>
+
+<span class="sd">    .. __: https://docs.python.org/glossary.html#term-mapping</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;row_factory&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">DictRow</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prefetch</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">callproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">callproc</span><span class="p">(</span><span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_build_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+<span class="k">class</span> <span class="nc">DictRow</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A row object that allow by-column-name access to data.&quot;&quot;&quot;</span>
+
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;_index&#39;</span><span class="p">,)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cursor</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_index</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">index</span>
+        <span class="bp">self</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">cursor</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">)):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">)):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">items</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__getitem__</span>
+        <span class="k">return</span> <span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">g</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">[</span><span class="n">n</span><span class="p">]))</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__getitem__</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">g</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">[</span><span class="n">n</span><span class="p">])</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">default</span>
+
+    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">OrderedDict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index</span>
+
+    <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this is apparently useless, but it fixes #1073</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__reduce__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[:],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_index</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">RealDictConnection</span><span class="p">(</span><span class="n">_connection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A connection that uses `RealDictCursor` automatically.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;cursor_factory&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor_factory</span> <span class="ow">or</span> <span class="n">RealDictCursor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">RealDictCursor</span><span class="p">(</span><span class="n">DictCursorBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A cursor that uses a real dict as the base type for rows.</span>
+
+<span class="sd">    Note that this cursor is extremely specialized and does not allow</span>
+<span class="sd">    the normal access (using integer indices) to fetched data. If you need</span>
+<span class="sd">    to access database rows both as a dictionary and a list, then use</span>
+<span class="sd">    the generic `DictCursor` instead of `!RealDictCursor`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;row_factory&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">RealDictRow</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">column_mapping</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">callproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">column_mapping</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">callproc</span><span class="p">(</span><span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_build_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">column_mapping</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_query_executed</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+<span class="k">class</span> <span class="nc">RealDictRow</span><span class="p">(</span><span class="n">OrderedDict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A `!dict` subclass representing a data record.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">args</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">_cursor</span><span class="p">):</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cursor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Required for named cursors</span>
+            <span class="k">if</span> <span class="n">cursor</span><span class="o">.</span><span class="n">description</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">cursor</span><span class="o">.</span><span class="n">column_mapping</span><span class="p">:</span>
+                <span class="n">cursor</span><span class="o">.</span><span class="n">_build_index</span><span class="p">()</span>
+
+            <span class="c1"># Store the cols mapping in the dict itself until the row is fully</span>
+            <span class="c1"># populated, so we don&#39;t need to add attributes to the class</span>
+            <span class="c1"># (hence keeping its maintenance, special pickle support, etc.)</span>
+            <span class="bp">self</span><span class="p">[</span><span class="n">RealDictRow</span><span class="p">]</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">column_mapping</span>
+
+    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">RealDictRow</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="c1"># We are in the row building phase</span>
+            <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">RealDictRow</span><span class="p">]</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mapping</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># Row building finished</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="p">[</span><span class="n">RealDictRow</span><span class="p">]</span>
+            <span class="k">return</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">NamedTupleConnection</span><span class="p">(</span><span class="n">_connection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A connection that uses `NamedTupleCursor` automatically.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;cursor_factory&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor_factory</span> <span class="ow">or</span> <span class="n">NamedTupleCursor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">NamedTupleCursor</span><span class="p">(</span><span class="n">_cursor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A cursor that generates results as `~collections.namedtuple`.</span>
+
+<span class="sd">    `!fetch*()` methods will return named tuples instead of regular tuples, so</span>
+<span class="sd">    their elements can be accessed both as regular numeric items as well as</span>
+<span class="sd">    attributes.</span>
+
+<span class="sd">        &gt;&gt;&gt; nt_cur = conn.cursor(cursor_factory=psycopg2.extras.NamedTupleCursor)</span>
+<span class="sd">        &gt;&gt;&gt; rec = nt_cur.fetchone()</span>
+<span class="sd">        &gt;&gt;&gt; rec</span>
+<span class="sd">        Record(id=1, num=100, data=&quot;abc&#39;def&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; rec[1]</span>
+<span class="sd">        100</span>
+<span class="sd">        &gt;&gt;&gt; rec.data</span>
+<span class="sd">        &quot;abc&#39;def&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Record</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">MAX_CACHE</span> <span class="o">=</span> <span class="mi">1024</span>
+
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Record</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">executemany</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Record</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">executemany</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">callproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Record</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">callproc</span><span class="p">(</span><span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">fetchone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Record</span>
+            <span class="k">if</span> <span class="n">nt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_nt</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">nt</span><span class="o">.</span><span class="n">_make</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">fetchmany</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">ts</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchmany</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Record</span>
+        <span class="k">if</span> <span class="n">nt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_nt</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">nt</span><span class="o">.</span><span class="n">_make</span><span class="p">,</span> <span class="n">ts</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">fetchall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ts</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Record</span>
+        <span class="k">if</span> <span class="n">nt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_nt</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">nt</span><span class="o">.</span><span class="n">_make</span><span class="p">,</span> <span class="n">ts</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">it</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">()</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">)</span>
+
+            <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Record</span>
+            <span class="k">if</span> <span class="n">nt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">nt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_nt</span><span class="p">()</span>
+
+            <span class="k">yield</span> <span class="n">nt</span><span class="o">.</span><span class="n">_make</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">nt</span><span class="o">.</span><span class="n">_make</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_make_nt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="k">else</span> <span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_make_nt</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_do_make_nt</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">_re_clean</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+            <span class="c1"># Python identifier cannot start with numbers, namedtuple fields</span>
+            <span class="c1"># cannot start with underscore. So...</span>
+            <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;_&#39;</span> <span class="ow">or</span> <span class="s1">&#39;0&#39;</span> <span class="o">&lt;=</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="s1">&#39;9&#39;</span><span class="p">:</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="s1">&#39;f&#39;</span> <span class="o">+</span> <span class="n">s</span>
+            <span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+        <span class="n">nt</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s2">&quot;Record&quot;</span><span class="p">,</span> <span class="n">fields</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">nt</span>
+
+
+<span class="nd">@lru_cache</span><span class="p">(</span><span class="mi">512</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_cached_make_nt</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_do_make_nt</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+
+<span class="c1"># Exposed for testability, and if someone wants to monkeypatch to tweak</span>
+<span class="c1"># the cache size.</span>
+<span class="n">NamedTupleCursor</span><span class="o">.</span><span class="n">_cached_make_nt</span> <span class="o">=</span> <span class="nb">classmethod</span><span class="p">(</span><span class="n">_cached_make_nt</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">LoggingConnection</span><span class="p">(</span><span class="n">_connection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A connection that logs all queries to a file or logger__ object.</span>
+
+<span class="sd">    .. __: https://docs.python.org/library/logging.html</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logobj</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the connection to log to `!logobj`.</span>
+
+<span class="sd">        The `!logobj` parameter can be an open file object or a Logger/LoggerAdapter</span>
+<span class="sd">        instance from the standard logging module.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logobj</span> <span class="o">=</span> <span class="n">logobj</span>
+        <span class="k">if</span> <span class="n">_logging</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">logobj</span><span class="p">,</span> <span class="p">(</span><span class="n">_logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">,</span> <span class="n">_logging</span><span class="o">.</span><span class="n">LoggerAdapter</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logtologger</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logtofile</span>
+
+    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">curs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter the query before logging it.</span>
+
+<span class="sd">        This is the method to overwrite to filter unwanted queries out of the</span>
+<span class="sd">        log or to add some extra data to the output. The default implementation</span>
+<span class="sd">        just does nothing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">msg</span>
+
+    <span class="k">def</span> <span class="nf">_logtofile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">curs</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">curs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">msg</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">_ext</span><span class="o">.</span><span class="n">encodings</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">encoding</span><span class="p">],</span> <span class="s1">&#39;replace&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logobj</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span> <span class="o">+</span> <span class="n">_os</span><span class="o">.</span><span class="n">linesep</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_logtologger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">curs</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">curs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">msg</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logobj</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_check</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_logobj&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                <span class="s2">&quot;LoggingConnection object has not been initialize()d&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check</span><span class="p">()</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;cursor_factory&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cursor_factory</span> <span class="ow">or</span> <span class="n">LoggingCursor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">LoggingCursor</span><span class="p">(</span><span class="n">_cursor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A cursor that logs queries using its connection logging facilities.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LoggingCursor.callproc">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.callproc">[docs]</a>
+    <span class="k">def</span> <span class="nf">callproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">callproc</span><span class="p">(</span><span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span></div>
+
+
+
+<span class="k">class</span> <span class="nc">MinTimeLoggingConnection</span><span class="p">(</span><span class="n">LoggingConnection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A connection that logs queries based on execution time.</span>
+
+<span class="sd">    This is just an example of how to sub-class `LoggingConnection` to</span>
+<span class="sd">    provide some extra filtering for the logged queries. Both the</span>
+<span class="sd">    `initialize()` and `filter()` methods are overwritten to make sure</span>
+<span class="sd">    that only queries executing for more than ``mintime`` ms are logged.</span>
+
+<span class="sd">    Note that this connection uses the specialized cursor</span>
+<span class="sd">    `MinTimeLoggingCursor`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logobj</span><span class="p">,</span> <span class="n">mintime</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">LoggingConnection</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logobj</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mintime</span> <span class="o">=</span> <span class="n">mintime</span>
+
+    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">curs</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="p">(</span><span class="n">_time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">curs</span><span class="o">.</span><span class="n">timestamp</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="k">if</span> <span class="n">t</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mintime</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">_ext</span><span class="o">.</span><span class="n">encodings</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">encoding</span><span class="p">],</span> <span class="s1">&#39;replace&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">msg</span><span class="si">}{</span><span class="n">_os</span><span class="o">.</span><span class="n">linesep</span><span class="si">}</span><span class="s2">  (execution time: </span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2"> ms)&quot;</span>
+
+    <span class="k">def</span> <span class="nf">cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;cursor_factory&#39;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cursor_factory</span> <span class="ow">or</span> <span class="n">MinTimeLoggingCursor</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">LoggingConnection</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">MinTimeLoggingCursor</span><span class="p">(</span><span class="n">LoggingCursor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The cursor sub-class companion to `MinTimeLoggingConnection`.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">=</span> <span class="n">_time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">LoggingCursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">callproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">=</span> <span class="n">_time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">LoggingCursor</span><span class="o">.</span><span class="n">callproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">procname</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">LogicalReplicationConnection</span><span class="p">(</span><span class="n">_replicationConnection</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;replication_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">REPLICATION_LOGICAL</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">PhysicalReplicationConnection</span><span class="p">(</span><span class="n">_replicationConnection</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;replication_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">REPLICATION_PHYSICAL</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">StopReplication</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Exception used to break out of the endless loop in</span>
+<span class="sd">    `~ReplicationCursor.consume_stream()`.</span>
+
+<span class="sd">    Subclass of `~exceptions.Exception`.  Intentionally *not* inherited from</span>
+<span class="sd">    `~psycopg2.Error` as occurrence of this exception does not indicate an</span>
+<span class="sd">    error.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">ReplicationCursor</span><span class="p">(</span><span class="n">_replicationCursor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A cursor used for communication on replication connections.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">create_replication_slot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slot_name</span><span class="p">,</span> <span class="n">slot_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_plugin</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create streaming replication slot.&quot;&quot;&quot;</span>
+
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;CREATE_REPLICATION_SLOT </span><span class="si">{</span><span class="n">quote_ident</span><span class="p">(</span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+
+        <span class="k">if</span> <span class="n">slot_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">slot_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">replication_type</span>
+
+        <span class="k">if</span> <span class="n">slot_type</span> <span class="o">==</span> <span class="n">REPLICATION_LOGICAL</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">output_plugin</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                    <span class="s2">&quot;output plugin name is required to create &quot;</span>
+                    <span class="s2">&quot;logical replication slot&quot;</span><span class="p">)</span>
+
+            <span class="n">command</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;LOGICAL </span><span class="si">{</span><span class="n">quote_ident</span><span class="p">(</span><span class="n">output_plugin</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="k">elif</span> <span class="n">slot_type</span> <span class="o">==</span> <span class="n">REPLICATION_PHYSICAL</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">output_plugin</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                    <span class="s2">&quot;cannot specify output plugin name when creating &quot;</span>
+                    <span class="s2">&quot;physical replication slot&quot;</span><span class="p">)</span>
+
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;PHYSICAL&quot;</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;unrecognized replication type: </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="n">slot_type</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">drop_replication_slot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">slot_name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Drop streaming replication slot.&quot;&quot;&quot;</span>
+
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;DROP_REPLICATION_SLOT </span><span class="si">{</span><span class="n">quote_ident</span><span class="p">(</span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">start_replication</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">slot_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">slot_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">start_lsn</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">timeline</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decode</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">status_interval</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start replication stream.&quot;&quot;&quot;</span>
+
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;START_REPLICATION &quot;</span>
+
+        <span class="k">if</span> <span class="n">slot_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">slot_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">replication_type</span>
+
+        <span class="k">if</span> <span class="n">slot_type</span> <span class="o">==</span> <span class="n">REPLICATION_LOGICAL</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">slot_name</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;SLOT </span><span class="si">{</span><span class="n">quote_ident</span><span class="p">(</span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                    <span class="s2">&quot;slot name is required for logical replication&quot;</span><span class="p">)</span>
+
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;LOGICAL &quot;</span>
+
+        <span class="k">elif</span> <span class="n">slot_type</span> <span class="o">==</span> <span class="n">REPLICATION_PHYSICAL</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">slot_name</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;SLOT </span><span class="si">{</span><span class="n">quote_ident</span><span class="p">(</span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="c1"># don&#39;t add &quot;PHYSICAL&quot;, before 9.4 it was just START_REPLICATION XXX/XXX</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;unrecognized replication type: </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="n">slot_type</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">start_lsn</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="n">lsn</span> <span class="o">=</span> <span class="n">start_lsn</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+            <span class="n">lsn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">lsn</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="si">:</span><span class="s2">X</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">lsn</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="si">:</span><span class="s2">08X</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lsn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">start_lsn</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">32</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">4294967295</span><span class="si">:</span><span class="s2">X</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">start_lsn</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">4294967295</span><span class="si">:</span><span class="s2">08X</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="n">command</span> <span class="o">+=</span> <span class="n">lsn</span>
+
+        <span class="k">if</span> <span class="n">timeline</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">slot_type</span> <span class="o">==</span> <span class="n">REPLICATION_LOGICAL</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                    <span class="s2">&quot;cannot specify timeline for logical replication&quot;</span><span class="p">)</span>
+
+            <span class="n">command</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; TIMELINE </span><span class="si">{</span><span class="n">timeline</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="k">if</span> <span class="n">options</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">slot_type</span> <span class="o">==</span> <span class="n">REPLICATION_PHYSICAL</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                    <span class="s2">&quot;cannot specify output plugin options for physical replication&quot;</span><span class="p">)</span>
+
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot; (&quot;</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">options</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">command</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;(&#39;</span><span class="p">):</span>
+                    <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;, &quot;</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">quote_ident</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">_A</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="s2">&quot;)&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_replication_expert</span><span class="p">(</span>
+            <span class="n">command</span><span class="p">,</span> <span class="n">decode</span><span class="o">=</span><span class="n">decode</span><span class="p">,</span> <span class="n">status_interval</span><span class="o">=</span><span class="n">status_interval</span><span class="p">)</span>
+
+    <span class="c1"># allows replication cursors to be used in select.select() directly</span>
+    <span class="k">def</span> <span class="nf">fileno</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">fileno</span><span class="p">()</span>
+
+
+<span class="c1"># a dbtype and adapter for Python UUID type</span>
+
+<span class="k">class</span> <span class="nc">UUID_adapter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Adapt Python&#39;s uuid.UUID__ type to PostgreSQL&#39;s uuid__.</span>
+
+<span class="sd">    .. __: https://docs.python.org/library/uuid.html</span>
+<span class="sd">    .. __: https://www.postgresql.org/docs/current/static/datatype-uuid.html</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uuid</span> <span class="o">=</span> <span class="n">uuid</span>
+
+    <span class="k">def</span> <span class="nf">__conform__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">proto</span> <span class="ow">is</span> <span class="n">_ext</span><span class="o">.</span><span class="n">ISQLQuote</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">getquoted</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_uuid</span><span class="si">}</span><span class="s2">&#39;::uuid&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf8&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_uuid</span><span class="si">}</span><span class="s2">&#39;::uuid&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">register_uuid</span><span class="p">(</span><span class="n">oids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create the UUID type and an uuid.UUID adapter.</span>
+
+<span class="sd">    :param oids: oid for the PostgreSQL :sql:`uuid` type, or 2-items sequence</span>
+<span class="sd">        with oids of the type and the array. If not specified, use PostgreSQL</span>
+<span class="sd">        standard oids.</span>
+<span class="sd">    :param conn_or_curs: where to register the typecaster. If not specified,</span>
+<span class="sd">        register it globally.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">import</span> <span class="nn">uuid</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">oids</span><span class="p">:</span>
+        <span class="n">oid1</span> <span class="o">=</span> <span class="mi">2950</span>
+        <span class="n">oid2</span> <span class="o">=</span> <span class="mi">2951</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">oids</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="n">oid1</span><span class="p">,</span> <span class="n">oid2</span> <span class="o">=</span> <span class="n">oids</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">oid1</span> <span class="o">=</span> <span class="n">oids</span>
+        <span class="n">oid2</span> <span class="o">=</span> <span class="mi">2951</span>
+
+    <span class="n">_ext</span><span class="o">.</span><span class="n">UUID</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">new_type</span><span class="p">((</span><span class="n">oid1</span><span class="p">,</span> <span class="p">),</span> <span class="s2">&quot;UUID&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">:</span> <span class="n">data</span> <span class="ow">and</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">_ext</span><span class="o">.</span><span class="n">UUIDARRAY</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">new_array_type</span><span class="p">((</span><span class="n">oid2</span><span class="p">,),</span> <span class="s2">&quot;UUID[]&quot;</span><span class="p">,</span> <span class="n">_ext</span><span class="o">.</span><span class="n">UUID</span><span class="p">)</span>
+
+    <span class="n">_ext</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">_ext</span><span class="o">.</span><span class="n">UUID</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="p">)</span>
+    <span class="n">_ext</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">_ext</span><span class="o">.</span><span class="n">UUIDARRAY</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="p">)</span>
+    <span class="n">_ext</span><span class="o">.</span><span class="n">register_adapter</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">,</span> <span class="n">UUID_adapter</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_ext</span><span class="o">.</span><span class="n">UUID</span>
+
+
+<span class="c1"># a type, dbtype and adapter for PostgreSQL inet type</span>
+
+<span class="k">class</span> <span class="nc">Inet</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap a string to allow for correct SQL-quoting of inet values.</span>
+
+<span class="sd">    Note that this adapter does NOT check the passed value to make</span>
+<span class="sd">    sure it really is an inet-compatible address but DOES call adapt()</span>
+<span class="sd">    on it to make sure it is impossible to execute an SQL-injection</span>
+<span class="sd">    by passing an evil value to the initializer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">addr</span> <span class="o">=</span> <span class="n">addr</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">addr</span><span class="si">!r}</span><span class="s2">)&quot;</span>
+
+    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_conn</span> <span class="o">=</span> <span class="n">conn</span>
+
+    <span class="k">def</span> <span class="nf">getquoted</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">_A</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">addr</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">&#39;prepare&#39;</span><span class="p">):</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">prepare</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_conn</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">getquoted</span><span class="p">()</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">&quot;::inet&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__conform__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">proto</span> <span class="ow">is</span> <span class="n">_ext</span><span class="o">.</span><span class="n">ISQLQuote</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">addr</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">register_inet</span><span class="p">(</span><span class="n">oid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create the INET type and an Inet adapter.</span>
+
+<span class="sd">    :param oid: oid for the PostgreSQL :sql:`inet` type, or 2-items sequence</span>
+<span class="sd">        with oids of the type and the array. If not specified, use PostgreSQL</span>
+<span class="sd">        standard oids.</span>
+<span class="sd">    :param conn_or_curs: where to register the typecaster. If not specified,</span>
+<span class="sd">        register it globally.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">warnings</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+        <span class="s2">&quot;the inet adapter is deprecated, it&#39;s not very useful&quot;</span><span class="p">,</span>
+        <span class="ne">DeprecationWarning</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">oid</span><span class="p">:</span>
+        <span class="n">oid1</span> <span class="o">=</span> <span class="mi">869</span>
+        <span class="n">oid2</span> <span class="o">=</span> <span class="mi">1041</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">oid</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="n">oid1</span><span class="p">,</span> <span class="n">oid2</span> <span class="o">=</span> <span class="n">oid</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">oid1</span> <span class="o">=</span> <span class="n">oid</span>
+        <span class="n">oid2</span> <span class="o">=</span> <span class="mi">1041</span>
+
+    <span class="n">_ext</span><span class="o">.</span><span class="n">INET</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">new_type</span><span class="p">((</span><span class="n">oid1</span><span class="p">,</span> <span class="p">),</span> <span class="s2">&quot;INET&quot;</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">:</span> <span class="n">data</span> <span class="ow">and</span> <span class="n">Inet</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">_ext</span><span class="o">.</span><span class="n">INETARRAY</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">new_array_type</span><span class="p">((</span><span class="n">oid2</span><span class="p">,</span> <span class="p">),</span> <span class="s2">&quot;INETARRAY&quot;</span><span class="p">,</span> <span class="n">_ext</span><span class="o">.</span><span class="n">INET</span><span class="p">)</span>
+
+    <span class="n">_ext</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">_ext</span><span class="o">.</span><span class="n">INET</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="p">)</span>
+    <span class="n">_ext</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">_ext</span><span class="o">.</span><span class="n">INETARRAY</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_ext</span><span class="o">.</span><span class="n">INET</span>
+
+
+<span class="k">def</span> <span class="nf">wait_select</span><span class="p">(</span><span class="n">conn</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wait until a connection or cursor has data available.</span>
+
+<span class="sd">    The function is an example of a wait callback to be registered with</span>
+<span class="sd">    `~psycopg2.extensions.set_wait_callback()`. This function uses</span>
+<span class="sd">    :py:func:`~select.select()` to wait for data to become available, and</span>
+<span class="sd">    therefore is able to handle/receive SIGINT/KeyboardInterrupt.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">select</span>
+    <span class="kn">from</span> <span class="nn">psycopg2.extensions</span> <span class="kn">import</span> <span class="n">POLL_OK</span><span class="p">,</span> <span class="n">POLL_READ</span><span class="p">,</span> <span class="n">POLL_WRITE</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">poll</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">state</span> <span class="o">==</span> <span class="n">POLL_OK</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">POLL_READ</span><span class="p">:</span>
+                <span class="n">select</span><span class="o">.</span><span class="n">select</span><span class="p">([</span><span class="n">conn</span><span class="o">.</span><span class="n">fileno</span><span class="p">()],</span> <span class="p">[],</span> <span class="p">[])</span>
+            <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">POLL_WRITE</span><span class="p">:</span>
+                <span class="n">select</span><span class="o">.</span><span class="n">select</span><span class="p">([],</span> <span class="p">[</span><span class="n">conn</span><span class="o">.</span><span class="n">fileno</span><span class="p">()],</span> <span class="p">[])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">conn</span><span class="o">.</span><span class="n">OperationalError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;bad state from poll: </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+            <span class="c1"># the loop will be broken by a server error</span>
+            <span class="k">continue</span>
+
+
+<span class="k">def</span> <span class="nf">_solve_conn_curs</span><span class="p">(</span><span class="n">conn_or_curs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the connection and a DBAPI cursor from a connection or cursor.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">conn_or_curs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span><span class="s2">&quot;no connection or cursor provided&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">conn_or_curs</span><span class="p">,</span> <span class="s1">&#39;execute&#39;</span><span class="p">):</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">conn_or_curs</span><span class="o">.</span><span class="n">connection</span>
+        <span class="n">curs</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">_cursor</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">conn_or_curs</span>
+        <span class="n">curs</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">_cursor</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">conn</span><span class="p">,</span> <span class="n">curs</span>
+
+
+<span class="k">class</span> <span class="nc">HstoreAdapter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Adapt a Python dict to the hstore syntax.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wrapped</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wrapped</span> <span class="o">=</span> <span class="n">wrapped</span>
+
+    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span>
+
+        <span class="c1"># use an old-style getquoted implementation if required</span>
+        <span class="k">if</span> <span class="n">conn</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">server_version</span> <span class="o">&lt;</span> <span class="mi">90000</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">getquoted</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getquoted_8</span>
+
+    <span class="k">def</span> <span class="nf">_getquoted_8</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use the operators available in PG pre-9.0.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapped</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;&#39;&#39;::hstore&quot;</span>
+
+        <span class="n">adapt</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">adapt</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapped</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">adapt</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+            <span class="n">k</span><span class="o">.</span><span class="n">prepare</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">k</span><span class="o">.</span><span class="n">getquoted</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">adapt</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="n">v</span><span class="o">.</span><span class="n">prepare</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">getquoted</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;NULL&#39;</span>
+
+            <span class="c1"># XXX this b&#39;ing is painfully inefficient!</span>
+            <span class="n">rv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;(&quot;</span> <span class="o">+</span> <span class="n">k</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">&quot; =&gt; &quot;</span> <span class="o">+</span> <span class="n">v</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">&quot;)&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;(&quot;</span> <span class="o">+</span> <span class="sa">b</span><span class="s1">&#39;||&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">&quot;)&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_getquoted_9</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use the hstore(text[], text[]) function.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapped</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;&#39;&#39;::hstore&quot;</span>
+
+        <span class="n">k</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">adapt</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wrapped</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+        <span class="n">k</span><span class="o">.</span><span class="n">prepare</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">adapt</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wrapped</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+        <span class="n">v</span><span class="o">.</span><span class="n">prepare</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;hstore(&quot;</span> <span class="o">+</span> <span class="n">k</span><span class="o">.</span><span class="n">getquoted</span><span class="p">()</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">&quot;, &quot;</span> <span class="o">+</span> <span class="n">v</span><span class="o">.</span><span class="n">getquoted</span><span class="p">()</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">&quot;)&quot;</span>
+
+    <span class="n">getquoted</span> <span class="o">=</span> <span class="n">_getquoted_9</span>
+
+    <span class="n">_re_hstore</span> <span class="o">=</span> <span class="n">_re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        # hstore key:</span>
+<span class="s2">        # a string of normal or escaped chars</span>
+<span class="s2">        &quot;((?: [^&quot;\\] | \\. )*)&quot;</span>
+<span class="s2">        \s*=&gt;\s* # hstore value</span>
+<span class="s2">        (?:</span>
+<span class="s2">            NULL # the value can be null - not catched</span>
+<span class="s2">            # or a quoted string like the key</span>
+<span class="s2">            | &quot;((?: [^&quot;\\] | \\. )*)&quot;</span>
+<span class="s2">        )</span>
+<span class="s2">        (?:\s*,\s*|$) # pairs separated by comma or end of string.</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span> <span class="n">_re</span><span class="o">.</span><span class="n">VERBOSE</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">cur</span><span class="p">,</span> <span class="n">_bsdec</span><span class="o">=</span><span class="n">_re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">(.)&quot;</span><span class="p">)):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse an hstore representation in a Python string.</span>
+
+<span class="sd">        The hstore is represented as something like::</span>
+
+<span class="sd">            &quot;a&quot;=&gt;&quot;1&quot;, &quot;b&quot;=&gt;&quot;2&quot;</span>
+
+<span class="sd">        with backslash-escaped strings.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">rv</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_re_hstore</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">m</span><span class="o">.</span><span class="n">start</span><span class="p">()</span> <span class="o">!=</span> <span class="n">start</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">InterfaceError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;error parsing hstore pair at char </span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">_bsdec</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\1&#39;</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">_bsdec</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\1&#39;</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+
+            <span class="n">rv</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">start</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">InterfaceError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;error parsing hstore: unparsed data after char </span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">rv</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parse_unicode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">cur</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse an hstore returning unicode keys and values.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">_ext</span><span class="o">.</span><span class="n">encodings</span><span class="p">[</span><span class="n">cur</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">encoding</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">cur</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_oids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the lists of OID of the hstore and hstore[] types.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conn</span><span class="p">,</span> <span class="n">curs</span> <span class="o">=</span> <span class="n">_solve_conn_curs</span><span class="p">(</span><span class="n">conn_or_curs</span><span class="p">)</span>
+
+        <span class="c1"># Store the transaction status of the connection to revert it after use</span>
+        <span class="n">conn_status</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">status</span>
+
+        <span class="c1"># column typarray not available before PG 8.3</span>
+        <span class="n">typarray</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">server_version</span> <span class="o">&gt;=</span> <span class="mi">80300</span> <span class="ow">and</span> <span class="s2">&quot;typarray&quot;</span> <span class="ow">or</span> <span class="s2">&quot;NULL&quot;</span>
+
+        <span class="n">rv0</span><span class="p">,</span> <span class="n">rv1</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+
+        <span class="c1"># get the oid for the hstore</span>
+        <span class="n">curs</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;&quot;SELECT t.oid, </span><span class="si">{</span><span class="n">typarray</span><span class="si">}</span>
+<span class="s2">FROM pg_type t JOIN pg_namespace ns</span>
+<span class="s2">    ON typnamespace = ns.oid</span>
+<span class="s2">WHERE typname = &#39;hstore&#39;;</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">oids</span> <span class="ow">in</span> <span class="n">curs</span><span class="p">:</span>
+            <span class="n">rv0</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">oids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">rv1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">oids</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># revert the status of the connection as before the command</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">conn_status</span> <span class="o">!=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">STATUS_IN_TRANSACTION</span>
+        <span class="ow">and</span> <span class="ow">not</span> <span class="n">conn</span><span class="o">.</span><span class="n">autocommit</span><span class="p">):</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">rv0</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">rv1</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">register_hstore</span><span class="p">(</span><span class="n">conn_or_curs</span><span class="p">,</span> <span class="n">globally</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unicode</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">oid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">array_oid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Register adapter and typecaster for `!dict`\-\ |hstore| conversions.</span>
+
+<span class="sd">    :param conn_or_curs: a connection or cursor: the typecaster will be</span>
+<span class="sd">        registered only on this object unless *globally* is set to `!True`</span>
+<span class="sd">    :param globally: register the adapter globally, not only on *conn_or_curs*</span>
+<span class="sd">    :param unicode: if `!True`, keys and values returned from the database</span>
+<span class="sd">        will be `!unicode` instead of `!str`. The option is not available on</span>
+<span class="sd">        Python 3</span>
+<span class="sd">    :param oid: the OID of the |hstore| type if known. If not, it will be</span>
+<span class="sd">        queried on *conn_or_curs*.</span>
+<span class="sd">    :param array_oid: the OID of the |hstore| array type if known. If not, it</span>
+<span class="sd">        will be queried on *conn_or_curs*.</span>
+
+<span class="sd">    The connection or cursor passed to the function will be used to query the</span>
+<span class="sd">    database and look for the OID of the |hstore| type (which may be different</span>
+<span class="sd">    across databases). If querying is not desirable (e.g. with</span>
+<span class="sd">    :ref:`asynchronous connections &lt;async-support&gt;`) you may specify it in the</span>
+<span class="sd">    *oid* parameter, which can be found using a query such as :sql:`SELECT</span>
+<span class="sd">    &#39;hstore&#39;::regtype::oid`. Analogously you can obtain a value for *array_oid*</span>
+<span class="sd">    using a query such as :sql:`SELECT &#39;hstore[]&#39;::regtype::oid`.</span>
+
+<span class="sd">    Note that, when passing a dictionary from Python to the database, both</span>
+<span class="sd">    strings and unicode keys and values are supported. Dictionaries returned</span>
+<span class="sd">    from the database have keys/values according to the *unicode* parameter.</span>
+
+<span class="sd">    The |hstore| contrib module must be already installed in the database</span>
+<span class="sd">    (executing the ``hstore.sql`` script in your ``contrib`` directory).</span>
+<span class="sd">    Raise `~psycopg2.ProgrammingError` if the type is not found.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">oid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">oid</span> <span class="o">=</span> <span class="n">HstoreAdapter</span><span class="o">.</span><span class="n">get_oids</span><span class="p">(</span><span class="n">conn_or_curs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">oid</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">oid</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                <span class="s2">&quot;hstore type not found in the database. &quot;</span>
+                <span class="s2">&quot;please install it from your &#39;contrib/hstore.sql&#39; file&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">array_oid</span> <span class="o">=</span> <span class="n">oid</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">oid</span> <span class="o">=</span> <span class="n">oid</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">oid</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">oid</span> <span class="o">=</span> <span class="p">(</span><span class="n">oid</span><span class="p">,)</span>
+
+    <span class="k">if</span> <span class="n">array_oid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">array_oid</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">array_oid</span> <span class="o">=</span> <span class="p">(</span><span class="n">array_oid</span><span class="p">,)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">array_oid</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">array_oid</span> <span class="k">if</span> <span class="n">x</span><span class="p">])</span>
+
+    <span class="c1"># create and register the typecaster</span>
+    <span class="n">HSTORE</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">new_type</span><span class="p">(</span><span class="n">oid</span><span class="p">,</span> <span class="s2">&quot;HSTORE&quot;</span><span class="p">,</span> <span class="n">HstoreAdapter</span><span class="o">.</span><span class="n">parse</span><span class="p">)</span>
+    <span class="n">_ext</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">HSTORE</span><span class="p">,</span> <span class="ow">not</span> <span class="n">globally</span> <span class="ow">and</span> <span class="n">conn_or_curs</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">_ext</span><span class="o">.</span><span class="n">register_adapter</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">HstoreAdapter</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">array_oid</span><span class="p">:</span>
+        <span class="n">HSTOREARRAY</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">new_array_type</span><span class="p">(</span><span class="n">array_oid</span><span class="p">,</span> <span class="s2">&quot;HSTOREARRAY&quot;</span><span class="p">,</span> <span class="n">HSTORE</span><span class="p">)</span>
+        <span class="n">_ext</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">HSTOREARRAY</span><span class="p">,</span> <span class="ow">not</span> <span class="n">globally</span> <span class="ow">and</span> <span class="n">conn_or_curs</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">CompositeCaster</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helps conversion of a PostgreSQL composite type into a Python object.</span>
+
+<span class="sd">    The class is usually created by the `register_composite()` function.</span>
+<span class="sd">    You may want to create and register manually instances of the class if</span>
+<span class="sd">    querying the database at registration time is not desirable (such as when</span>
+<span class="sd">    using an :ref:`asynchronous connections &lt;async-support&gt;`).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">oid</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">array_oid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schema</span> <span class="o">=</span> <span class="n">schema</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oid</span> <span class="o">=</span> <span class="n">oid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">array_oid</span> <span class="o">=</span> <span class="n">array_oid</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">attnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atttypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_type</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">attnames</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">typecaster</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">new_type</span><span class="p">((</span><span class="n">oid</span><span class="p">,),</span> <span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">array_oid</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">array_typecaster</span> <span class="o">=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">new_array_type</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">array_oid</span><span class="p">,),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">ARRAY&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">typecaster</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">array_typecaster</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">curs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">s</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">tokens</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenize</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atttypes</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">DataError</span><span class="p">(</span>
+                <span class="s2">&quot;expecting </span><span class="si">%d</span><span class="s2"> components for the type </span><span class="si">%s</span><span class="s2">, </span><span class="si">%d</span><span class="s2"> found instead&quot;</span> <span class="o">%</span>
+                <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atttypes</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">)))</span>
+
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">curs</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">oid</span><span class="p">,</span> <span class="n">token</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">oid</span><span class="p">,</span> <span class="n">token</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atttypes</span><span class="p">,</span> <span class="n">tokens</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">make</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">make</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a new Python object representing the data being casted.</span>
+
+<span class="sd">        *values* is the list of attributes, already casted into their Python</span>
+<span class="sd">        representation.</span>
+
+<span class="sd">        You can subclass this method to :ref:`customize the composite cast</span>
+<span class="sd">        &lt;custom-composite&gt;`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ctor</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+
+    <span class="n">_re_tokenize</span> <span class="o">=</span> <span class="n">_re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">  \(? ([,)])                        # an empty token, representing NULL</span>
+<span class="s2">| \(? &quot; ((?: [^&quot;] | &quot;&quot;)*) &quot; [,)]    # or a quoted string</span>
+<span class="s2">| \(? ([^&quot;,)]+) [,)]                # or an unquoted string</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span> <span class="n">_re</span><span class="o">.</span><span class="n">VERBOSE</span><span class="p">)</span>
+
+    <span class="n">_re_undouble</span> <span class="o">=</span> <span class="n">_re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;([&quot;</span><span class="se">\\</span><span class="s1">])\1&#39;</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tokenize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_re_tokenize</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">InterfaceError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;can&#39;t parse type: </span><span class="si">{</span><span class="n">s</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">rv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">rv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_re_undouble</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\1&quot;</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">rv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">rv</span>
+
+    <span class="k">def</span> <span class="nf">_create_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">attnames</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">_re_clean</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">attnames</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ctor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">_make</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_from_db</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a `CompositeCaster` instance for the type *name*.</span>
+
+<span class="sd">        Raise `ProgrammingError` if the type is not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conn</span><span class="p">,</span> <span class="n">curs</span> <span class="o">=</span> <span class="n">_solve_conn_curs</span><span class="p">(</span><span class="n">conn_or_curs</span><span class="p">)</span>
+
+        <span class="c1"># Store the transaction status of the connection to revert it after use</span>
+        <span class="n">conn_status</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">status</span>
+
+        <span class="c1"># Use the correct schema</span>
+        <span class="k">if</span> <span class="s1">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+            <span class="n">schema</span><span class="p">,</span> <span class="n">tname</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tname</span> <span class="o">=</span> <span class="n">name</span>
+            <span class="n">schema</span> <span class="o">=</span> <span class="s1">&#39;public&#39;</span>
+
+        <span class="c1"># column typarray not available before PG 8.3</span>
+        <span class="n">typarray</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">server_version</span> <span class="o">&gt;=</span> <span class="mi">80300</span> <span class="ow">and</span> <span class="s2">&quot;typarray&quot;</span> <span class="ow">or</span> <span class="s2">&quot;NULL&quot;</span>
+
+        <span class="c1"># get the type oid and attributes</span>
+        <span class="n">curs</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">SELECT t.oid, </span><span class="si">%s</span><span class="s2">, attname, atttypid</span>
+<span class="s2">FROM pg_type t</span>
+<span class="s2">JOIN pg_namespace ns ON typnamespace = ns.oid</span>
+<span class="s2">JOIN pg_attribute a ON attrelid = typrelid</span>
+<span class="s2">WHERE typname = </span><span class="si">%%</span><span class="s2">s AND nspname = </span><span class="si">%%</span><span class="s2">s</span>
+<span class="s2">    AND attnum &gt; 0 AND NOT attisdropped</span>
+<span class="s2">ORDER BY attnum;</span>
+<span class="s2">&quot;&quot;&quot;</span> <span class="o">%</span> <span class="n">typarray</span><span class="p">,</span> <span class="p">(</span><span class="n">tname</span><span class="p">,</span> <span class="n">schema</span><span class="p">))</span>
+
+        <span class="n">recs</span> <span class="o">=</span> <span class="n">curs</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">recs</span><span class="p">:</span>
+            <span class="c1"># The above algorithm doesn&#39;t work for customized seach_path</span>
+            <span class="c1"># (#1487) The implementation below works better, but, to guarantee</span>
+            <span class="c1"># backwards compatibility, use it only if the original one failed.</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">savepoint</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="c1"># Because we executed statements earlier, we are either INTRANS</span>
+                <span class="c1"># or we are IDLE only if the transaction is autocommit, in</span>
+                <span class="c1"># which case we don&#39;t need the savepoint anyway.</span>
+                <span class="k">if</span> <span class="n">conn</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">_ext</span><span class="o">.</span><span class="n">STATUS_IN_TRANSACTION</span><span class="p">:</span>
+                    <span class="n">curs</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SAVEPOINT register_type&quot;</span><span class="p">)</span>
+                    <span class="n">savepoint</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="n">curs</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">SELECT t.oid, </span><span class="si">%s</span><span class="s2">, attname, atttypid, typname, nspname</span>
+<span class="s2">FROM pg_type t</span>
+<span class="s2">JOIN pg_namespace ns ON typnamespace = ns.oid</span>
+<span class="s2">JOIN pg_attribute a ON attrelid = typrelid</span>
+<span class="s2">WHERE t.oid = </span><span class="si">%%</span><span class="s2">s::regtype</span>
+<span class="s2">    AND attnum &gt; 0 AND NOT attisdropped</span>
+<span class="s2">ORDER BY attnum;</span>
+<span class="s2">&quot;&quot;&quot;</span> <span class="o">%</span> <span class="n">typarray</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="p">))</span>
+            <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">recs</span> <span class="o">=</span> <span class="n">curs</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">recs</span><span class="p">:</span>
+                    <span class="n">tname</span> <span class="o">=</span> <span class="n">recs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">4</span><span class="p">]</span>
+                    <span class="n">schema</span> <span class="o">=</span> <span class="n">recs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">5</span><span class="p">]</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">savepoint</span><span class="p">:</span>
+                    <span class="n">curs</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;ROLLBACK TO SAVEPOINT register_type&quot;</span><span class="p">)</span>
+
+        <span class="c1"># revert the status of the connection as before the command</span>
+        <span class="k">if</span> <span class="n">conn_status</span> <span class="o">!=</span> <span class="n">_ext</span><span class="o">.</span><span class="n">STATUS_IN_TRANSACTION</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">conn</span><span class="o">.</span><span class="n">autocommit</span><span class="p">:</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">recs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">ProgrammingError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;PostgreSQL type &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; not found&quot;</span><span class="p">)</span>
+
+        <span class="n">type_oid</span> <span class="o">=</span> <span class="n">recs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">array_oid</span> <span class="o">=</span> <span class="n">recs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">type_attrs</span> <span class="o">=</span> <span class="p">[(</span><span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">recs</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="p">(</span><span class="n">tname</span><span class="p">,</span> <span class="n">type_oid</span><span class="p">,</span> <span class="n">type_attrs</span><span class="p">,</span>
+            <span class="n">array_oid</span><span class="o">=</span><span class="n">array_oid</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">register_composite</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="p">,</span> <span class="n">globally</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">factory</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a typecaster to convert a composite type into a tuple.</span>
+
+<span class="sd">    :param name: the name of a PostgreSQL composite type, e.g. created using</span>
+<span class="sd">        the |CREATE TYPE|_ command</span>
+<span class="sd">    :param conn_or_curs: a connection or cursor used to find the type oid and</span>
+<span class="sd">        components; the typecaster is registered in a scope limited to this</span>
+<span class="sd">        object, unless *globally* is set to `!True`</span>
+<span class="sd">    :param globally: if `!False` (default) register the typecaster only on</span>
+<span class="sd">        *conn_or_curs*, otherwise register it globally</span>
+<span class="sd">    :param factory: if specified it should be a `CompositeCaster` subclass: use</span>
+<span class="sd">        it to :ref:`customize how to cast composite types &lt;custom-composite&gt;`</span>
+<span class="sd">    :return: the registered `CompositeCaster` or *factory* instance</span>
+<span class="sd">        responsible for the conversion</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">factory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">factory</span> <span class="o">=</span> <span class="n">CompositeCaster</span>
+
+    <span class="n">caster</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">_from_db</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">conn_or_curs</span><span class="p">)</span>
+    <span class="n">_ext</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">caster</span><span class="o">.</span><span class="n">typecaster</span><span class="p">,</span> <span class="ow">not</span> <span class="n">globally</span> <span class="ow">and</span> <span class="n">conn_or_curs</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">caster</span><span class="o">.</span><span class="n">array_typecaster</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_ext</span><span class="o">.</span><span class="n">register_type</span><span class="p">(</span>
+            <span class="n">caster</span><span class="o">.</span><span class="n">array_typecaster</span><span class="p">,</span> <span class="ow">not</span> <span class="n">globally</span> <span class="ow">and</span> <span class="n">conn_or_curs</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">caster</span>
+
+
+<span class="k">def</span> <span class="nf">_paginate</span><span class="p">(</span><span class="n">seq</span><span class="p">,</span> <span class="n">page_size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Consume an iterable and return it in chunks.</span>
+
+<span class="sd">    Every chunk is at most `page_size`. Never return an empty chunk.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">page</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">it</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">page_size</span><span class="p">):</span>
+                <span class="n">page</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">it</span><span class="p">))</span>
+            <span class="k">yield</span> <span class="n">page</span>
+            <span class="n">page</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">page</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">page</span>
+            <span class="k">return</span>
+
+
+<span class="k">def</span> <span class="nf">execute_batch</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">argslist</span><span class="p">,</span> <span class="n">page_size</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Execute groups of statements in fewer server roundtrips.</span>
+
+<span class="sd">    Execute *sql* several times, against all parameters set (sequences or</span>
+<span class="sd">    mappings) found in *argslist*.</span>
+
+<span class="sd">    The function is semantically similar to</span>
+
+<span class="sd">    .. parsed-literal::</span>
+
+<span class="sd">        *cur*\.\ `~cursor.executemany`\ (\ *sql*\ , *argslist*\ )</span>
+
+<span class="sd">    but has a different implementation: Psycopg will join the statements into</span>
+<span class="sd">    fewer multi-statement commands, each one containing at most *page_size*</span>
+<span class="sd">    statements, resulting in a reduced number of server roundtrips.</span>
+
+<span class="sd">    After the execution of the function the `cursor.rowcount` property will</span>
+<span class="sd">    **not** contain a total result.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">_paginate</span><span class="p">(</span><span class="n">argslist</span><span class="p">,</span> <span class="n">page_size</span><span class="o">=</span><span class="n">page_size</span><span class="p">):</span>
+        <span class="n">sqls</span> <span class="o">=</span> <span class="p">[</span><span class="n">cur</span><span class="o">.</span><span class="n">mogrify</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">page</span><span class="p">]</span>
+        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">b</span><span class="s2">&quot;;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sqls</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">execute_values</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">argslist</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">page_size</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">fetch</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Execute a statement using :sql:`VALUES` with a sequence of parameters.</span>
+
+<span class="sd">    :param cur: the cursor to use to execute the query.</span>
+
+<span class="sd">    :param sql: the query to execute. It must contain a single ``%s``</span>
+<span class="sd">        placeholder, which will be replaced by a `VALUES list`__.</span>
+<span class="sd">        Example: ``&quot;INSERT INTO mytable (id, f1, f2) VALUES %s&quot;``.</span>
+
+<span class="sd">    :param argslist: sequence of sequences or dictionaries with the arguments</span>
+<span class="sd">        to send to the query. The type and content must be consistent with</span>
+<span class="sd">        *template*.</span>
+
+<span class="sd">    :param template: the snippet to merge to every item in *argslist* to</span>
+<span class="sd">        compose the query.</span>
+
+<span class="sd">        - If the *argslist* items are sequences it should contain positional</span>
+<span class="sd">          placeholders (e.g. ``&quot;(%s, %s, %s)&quot;``, or ``&quot;(%s, %s, 42)``&quot; if there</span>
+<span class="sd">          are constants value...).</span>
+
+<span class="sd">        - If the *argslist* items are mappings it should contain named</span>
+<span class="sd">          placeholders (e.g. ``&quot;(%(id)s, %(f1)s, 42)&quot;``).</span>
+
+<span class="sd">        If not specified, assume the arguments are sequence and use a simple</span>
+<span class="sd">        positional template (i.e.  ``(%s, %s, ...)``), with the number of</span>
+<span class="sd">        placeholders sniffed by the first element in *argslist*.</span>
+
+<span class="sd">    :param page_size: maximum number of *argslist* items to include in every</span>
+<span class="sd">        statement. If there are more items the function will execute more than</span>
+<span class="sd">        one statement.</span>
+
+<span class="sd">    :param fetch: if `!True` return the query results into a list (like in a</span>
+<span class="sd">        `~cursor.fetchall()`).  Useful for queries with :sql:`RETURNING`</span>
+<span class="sd">        clause.</span>
+
+<span class="sd">    .. __: https://www.postgresql.org/docs/current/static/queries-values.html</span>
+
+<span class="sd">    After the execution of the function the `cursor.rowcount` property will</span>
+<span class="sd">    **not** contain a total result.</span>
+
+<span class="sd">    While :sql:`INSERT` is an obvious candidate for this function it is</span>
+<span class="sd">    possible to use it with other statements, for example::</span>
+
+<span class="sd">        &gt;&gt;&gt; cur.execute(</span>
+<span class="sd">        ... &quot;create table test (id int primary key, v1 int, v2 int)&quot;)</span>
+
+<span class="sd">        &gt;&gt;&gt; execute_values(cur,</span>
+<span class="sd">        ... &quot;INSERT INTO test (id, v1, v2) VALUES %s&quot;,</span>
+<span class="sd">        ... [(1, 2, 3), (4, 5, 6), (7, 8, 9)])</span>
+
+<span class="sd">        &gt;&gt;&gt; execute_values(cur,</span>
+<span class="sd">        ... &quot;&quot;&quot;UPDATE test SET v1 = data.v1 FROM (VALUES %s) AS data (id, v1)</span>
+<span class="sd">        ... WHERE test.id = data.id&quot;&quot;&quot;,</span>
+<span class="sd">        ... [(1, 20), (4, 50)])</span>
+
+<span class="sd">        &gt;&gt;&gt; cur.execute(&quot;select * from test order by id&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; cur.fetchall()</span>
+<span class="sd">        [(1, 20, 3), (4, 50, 6), (7, 8, 9)])</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">from</span> <span class="nn">psycopg2.sql</span> <span class="kn">import</span> <span class="n">Composable</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">Composable</span><span class="p">):</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">as_string</span><span class="p">(</span><span class="n">cur</span><span class="p">)</span>
+
+    <span class="c1"># we can&#39;t just use sql % vals because vals is bytes: if sql is bytes</span>
+    <span class="c1"># there will be some decoding error because of stupid codec used, and Py3</span>
+    <span class="c1"># doesn&#39;t implement % on bytes.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">_ext</span><span class="o">.</span><span class="n">encodings</span><span class="p">[</span><span class="n">cur</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">encoding</span><span class="p">])</span>
+    <span class="n">pre</span><span class="p">,</span> <span class="n">post</span> <span class="o">=</span> <span class="n">_split_sql</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">fetch</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">_paginate</span><span class="p">(</span><span class="n">argslist</span><span class="p">,</span> <span class="n">page_size</span><span class="o">=</span><span class="n">page_size</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">template</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;(&#39;</span> <span class="o">+</span> <span class="sa">b</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">b</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">page</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span> <span class="o">+</span> <span class="sa">b</span><span class="s1">&#39;)&#39;</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">pre</span><span class="p">[:]</span>
+        <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">page</span><span class="p">:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cur</span><span class="o">.</span><span class="n">mogrify</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">args</span><span class="p">))</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">:]</span> <span class="o">=</span> <span class="n">post</span>
+        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">fetch</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">())</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">def</span> <span class="nf">_split_sql</span><span class="p">(</span><span class="n">sql</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Split *sql* on a single ``%s`` placeholder.</span>
+
+<span class="sd">    Split on the %s, perform %% replacement and return pre, post lists of</span>
+<span class="sd">    snippets.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">curr</span> <span class="o">=</span> <span class="n">pre</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">post</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">tokens</span> <span class="o">=</span> <span class="n">_re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">br</span><span class="s1">&#39;(%.)&#39;</span><span class="p">,</span> <span class="n">sql</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">token</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">token</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="sa">b</span><span class="s1">&#39;%&#39;</span><span class="p">:</span>
+            <span class="n">curr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">token</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">==</span> <span class="sa">b</span><span class="s1">&#39;s&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">curr</span> <span class="ow">is</span> <span class="n">pre</span><span class="p">:</span>
+                <span class="n">curr</span> <span class="o">=</span> <span class="n">post</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;the query contains more than one &#39;</span><span class="si">%s</span><span class="s2">&#39; placeholder&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">token</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">==</span> <span class="sa">b</span><span class="s1">&#39;%&#39;</span><span class="p">:</span>
+            <span class="n">curr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;%&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unsupported format character: &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span>
+                <span class="o">%</span> <span class="n">token</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">,</span> <span class="s1">&#39;replace&#39;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">curr</span> <span class="ow">is</span> <span class="n">pre</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;the query doesn&#39;t contain any &#39;</span><span class="si">%s</span><span class="s2">&#39; placeholder&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pre</span><span class="p">,</span> <span class="n">post</span>
+
+
+<span class="c1"># ascii except alnum and underscore</span>
+<span class="n">_re_clean</span> <span class="o">=</span> <span class="n">_re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="s1">&#39;[&#39;</span> <span class="o">+</span> <span class="n">_re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="s1">&#39; !&quot;#$%&amp;</span><span class="se">\&#39;</span><span class="s1">()*+,-./:;&lt;=&gt;?@[</span><span class="se">\\</span><span class="s1">]^`{|}~&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;]&#39;</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Actio Python Utils</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../history.html">History</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2023, Brett Copeland.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>actio_python_utils.database_functions &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b76e3c8a" />
+    <link rel="stylesheet" type="text/css" href="../../_static/nature.css?v=601dbdee" />
+    <script src="../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.database_functions</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for actio_python_utils.database_functions</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Database-related functionality.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pgtoolkit.pgpass</span>
+<span class="kn">import</span> <span class="nn">pgtoolkit.service</span>
+<span class="kn">import</span> <span class="nn">psycopg2</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Hashable</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">MutableMapping</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span><span class="p">,</span> <span class="n">nullcontext</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">psycopg2.extras</span> <span class="kn">import</span> <span class="n">DictCursor</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="kn">import</span> <span class="n">TracebackType</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">CustomCSVDialect</span><span class="p">,</span> <span class="n">get_csv_fields</span><span class="p">,</span> <span class="n">rename_dict_keys</span><span class="p">,</span> <span class="n">zopen</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_pg_config">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.get_pg_config.html#actio_python_utils.database_functions.get_pg_config">[docs]</a>
+<span class="k">def</span> <span class="nf">get_pg_config</span><span class="p">(</span>
+    <span class="n">service</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">service_fn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">pgpass_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">),</span> <span class="s2">&quot;.pgpass&quot;</span><span class="p">),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pgtoolkit</span><span class="o">.</span><span class="n">pgpass</span><span class="o">.</span><span class="n">PassEntry</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Locates the PostgreSQL login credentials given a service name.</span>
+<span class="sd">    Uses ``service = $PGSERVICE`` or ``cfg[&quot;db&quot;][&quot;service&quot;]`` if not specified.</span>
+
+<span class="sd">    :param service: The PostgreSQL service name to get</span>
+<span class="sd">    :param service_fn: The path to the file containing service definitions.</span>
+<span class="sd">        Will use :func:`pgtoolkit.service.find` if not specified</span>
+<span class="sd">    :param pgpass_fn: The path to the file containing database login data</span>
+<span class="sd">    :return: The database login credentials corresponding to the given service</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">service_fn</span><span class="p">:</span>
+        <span class="n">service_fn</span> <span class="o">=</span> <span class="n">pgtoolkit</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">find</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">service_fn</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Service file </span><span class="si">{</span><span class="n">service_fn</span><span class="si">}</span><span class="s2"> does not exist.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">pgpass_fn</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;pgpass file </span><span class="si">{</span><span class="n">pgass_fn</span><span class="si">}</span><span class="s2"> does not exist.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">service</span><span class="p">:</span>
+        <span class="n">service</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGSERVICE&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">service</span><span class="p">:</span>
+            <span class="n">service</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;db&quot;</span><span class="p">][</span><span class="s2">&quot;service&quot;</span><span class="p">]</span>
+    <span class="n">services</span> <span class="o">=</span> <span class="n">pgtoolkit</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">service_fn</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">service_record</span> <span class="o">=</span> <span class="n">services</span><span class="p">[</span><span class="n">service</span><span class="p">]</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Service </span><span class="si">{</span><span class="n">service</span><span class="si">}</span><span class="s2"> not found.&quot;</span><span class="p">)</span>
+    <span class="n">service_dict</span> <span class="o">=</span> <span class="n">rename_dict_keys</span><span class="p">(</span>
+        <span class="n">service_record</span><span class="p">,</span>
+        <span class="p">(</span>
+            <span class="p">(</span><span class="s2">&quot;dbname&quot;</span><span class="p">,</span> <span class="s2">&quot;database&quot;</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="s2">&quot;hostname&quot;</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">),</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">pgpass</span> <span class="o">=</span> <span class="n">pgtoolkit</span><span class="o">.</span><span class="n">pgpass</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">pgpass_fn</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">pgpass_record</span> <span class="ow">in</span> <span class="n">pgpass</span><span class="o">.</span><span class="n">lines</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">pgpass_record</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="o">**</span><span class="n">service_dict</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">pgpass_record</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Didn&#39;t find the matching service.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="split_schema_from_table">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.split_schema_from_table.html#actio_python_utils.database_functions.split_schema_from_table">[docs]</a>
+<span class="k">def</span> <span class="nf">split_schema_from_table</span><span class="p">(</span>
+    <span class="n">table</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default_schema</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;public&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Split a possibly schema qualified table name into its schema and table names</span>
+
+<span class="sd">    :param table: The possibly schema qualified table name</span>
+<span class="sd">    :param default_schema: The default schema name</span>
+<span class="sd">    :return: A list with the schema name and the table name</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">table</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">default_schema</span><span class="p">,</span> <span class="n">table</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="savepoint">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.savepoint.html#actio_python_utils.database_functions.savepoint">[docs]</a>
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">savepoint</span><span class="p">(</span><span class="n">cur</span><span class="p">:</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">cursor</span><span class="p">,</span> <span class="n">savepoint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;savepoint&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a context manager to create a savepoint upon entering, rollback if</span>
+<span class="sd">    an error occurs, and release upon exiting</span>
+
+<span class="sd">    :param cur: The psycopg2 cursor query to use</span>
+<span class="sd">    :param savepoint: The name to give to the savepoint</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SAVEPOINT </span><span class="si">{</span><span class="n">savepoint</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ROLLBACK TO SAVEPOINT </span><span class="si">{</span><span class="n">savepoint</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;RELEASE SAVEPOINT </span><span class="si">{</span><span class="n">savepoint</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="savepoint_wrapper">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.savepoint_wrapper.html#actio_python_utils.database_functions.savepoint_wrapper">[docs]</a>
+<span class="k">def</span> <span class="nf">savepoint_wrapper</span><span class="p">(</span>
+    <span class="n">method</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">cursor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">Any</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">cursor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wraps a psycopg2 cursor&#39;s method to use a savepoint</span>
+
+<span class="sd">    :param method: The method to wrap</span>
+<span class="sd">    :return: The wrapped method</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dont_use_savepoint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">cm</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">nullcontext</span><span class="p">()</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">dry_run</span> <span class="ow">or</span> <span class="n">dont_use_savepoint</span><span class="p">)</span>
+            <span class="k">else</span> <span class="n">savepoint</span><span class="p">(</span><span class="nb">super</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="n">obj</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="k">with</span> <span class="n">cm</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">method</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">inner</span></div>
+
+
+
+<div class="viewcode-block" id="LoggingCursor">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor">[docs]</a>
+<span class="k">class</span> <span class="nc">LoggingCursor</span><span class="p">(</span><span class="n">DictCursor</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wraps :class:`psycopg2.extras.DictCursor` such that each copy_expert and</span>
+<span class="sd">    execute statement is logged</span>
+
+<span class="sd">    :param \*args: Any positional arguments to pass to the DictCursor constructor</span>
+<span class="sd">    :param log_level: The logging level to use</span>
+<span class="sd">    :param log_name: The name to give the logger</span>
+<span class="sd">    :param \**kwargs: Any named arguments to pass to the DictCursor constructor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LoggingCursor.__init__">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.__init__">[docs]</a>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="n">log_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;logging&quot;</span><span class="p">][</span><span class="s2">&quot;level&quot;</span><span class="p">],</span>
+        <span class="n">log_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;logging&quot;</span><span class="p">][</span><span class="s2">&quot;names&quot;</span><span class="p">][</span><span class="s2">&quot;db&quot;</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">log_level</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">log_level</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">_nameToLevel</span><span class="p">[</span><span class="n">log_level</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_level</span> <span class="o">=</span> <span class="n">log_level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">log_name</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_log_statement</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">statement</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Log the given statement with a prefix pertaining to whether it&#39;s a dry</span>
+<span class="sd">        run or not</span>
+
+<span class="sd">        :param statement: The SQL statement to log</span>
+<span class="sd">        :param dry_run: Do a dry run</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">dry_run</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_level</span><span class="p">,</span> <span class="s2">&quot;Would execute statement:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">statement</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_level</span><span class="p">,</span> <span class="s2">&quot;Executing statement:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">statement</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LoggingCursor.copy_expert">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.copy_expert">[docs]</a>
+    <span class="k">def</span> <span class="nf">copy_expert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sql</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Logs the sql statement and executes it if ``dry_run = False``</span>
+
+<span class="sd">        :param sql: The SQL statement to execute</span>
+<span class="sd">        :param file: The path to the file to import</span>
+<span class="sd">        :param \*args: Any positional arguments</span>
+<span class="sd">        :param dry_run: Do a dry run</span>
+<span class="sd">        :param \**kwargs: Any named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_statement</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">dry_run</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dry_run</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">copy_expert</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LoggingCursor.copy_to_csv">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.copy_to_csv">[docs]</a>
+    <span class="k">def</span> <span class="nf">copy_to_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sql</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Logs the sql statement and executes it if ``dry_run = False``</span>
+
+<span class="sd">        :param sql: The SQL statement to execute</span>
+<span class="sd">        :param file: The path to the file to write to</span>
+<span class="sd">        :param \*args: Any positional arguments</span>
+<span class="sd">        :param dry_run: Do a dry run</span>
+<span class="sd">        :param \**kwargs: Any named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;COPY (</span><span class="si">{</span><span class="n">sql</span><span class="si">}</span><span class="s2">) TO STDOUT CSV HEADER&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_statement</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">dry_run</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dry_run</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_level</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Writing query output to </span><span class="si">{</span><span class="n">file</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="s2">&quot;wt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">copy_expert</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">fh</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LoggingCursor.execute">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.execute">[docs]</a>
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="nb">vars</span><span class="p">:</span> <span class="n">Iterable</span> <span class="o">|</span> <span class="n">Mapping</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">dont_use_savepoint</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Logs the query and executes it if ``dry_run = False``</span>
+
+<span class="sd">        :param query: The SQL query to execute</span>
+<span class="sd">        :param vars: Variables to bind to the query</span>
+<span class="sd">        :param \*args: Any positional arguments</span>
+<span class="sd">        :param dry_run: Do a dry run</span>
+<span class="sd">        :param dont_use_savepoint: Ignored</span>
+<span class="sd">        :param \**kwargs: Any named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_statement</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mogrify</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(),</span> <span class="n">dry_run</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dry_run</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="nb">vars</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LoggingCursor.get_table_constraint_statements">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.get_table_constraint_statements">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_table_constraint_statements</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_list</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Takes a list of tables and returns a list of all the SQL definitions of</span>
+<span class="sd">        constraints defined on the tables.  The constraints are ordered by keys,</span>
+<span class="sd">        then other constraints on the tables, and lastly foreign keys defined on</span>
+<span class="sd">        other tables that reference one of the tables specified.</span>
+<span class="sd">        The purpose of this is to be able to drop these constraints, load data, and</span>
+<span class="sd">        recreate them for efficiency.</span>
+
+<span class="sd">        :param table_list: The list of tables to get constraints on</span>
+<span class="sd">        :return: The list of constraints</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">table_list</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        <span class="n">table_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">split_schema_from_table</span><span class="p">(</span><span class="n">table</span><span class="p">)</span> <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">table_list</span><span class="p">]</span>
+        <span class="c1"># order constraints to list keys first for efficiency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            (</span>
+<span class="sd">            /*  this gets constraints defined on the tables of interest a rank given by</span>
+<span class="sd">                primary key -&gt; rank = 0,</span>
+<span class="sd">                unique -&gt; rank = 1,</span>
+<span class="sd">                others (CHECK, FOREIGN KEY) -&gt; rank = 3</span>
+<span class="sd">            */</span>
+<span class="sd">                SELECT &#39;ALTER TABLE &#39;||n.nspname||&#39;.&quot;&#39;||c.relname||&#39;&quot; ADD CONSTRAINT &quot;&#39;</span>
+<span class="sd">                    ||con.conname||&#39;&quot; &#39;||pg_get_constraintdef(con.oid) AS statement,</span>
+<span class="sd">                    CASE WHEN con.contype = &#39;p&#39; THEN 0</span>
+<span class="sd">                         WHEN con.contype = &#39;u&#39; THEN 1</span>
+<span class="sd">                         ELSE 3</span>
+<span class="sd">                    END AS rank</span>
+<span class="sd">                FROM pg_constraint con</span>
+<span class="sd">                JOIN pg_class c ON con.conrelid = c.oid</span>
+<span class="sd">                JOIN pg_namespace n ON c.relnamespace = n.oid</span>
+<span class="sd">                WHERE {0})</span>
+<span class="sd">            UNION</span>
+<span class="sd">            (</span>
+<span class="sd">            /*  this gets non-primary key indexes (because the first subquery gets</span>
+<span class="sd">                them already) and sets rank = 2</span>
+<span class="sd">            */</span>
+<span class="sd">                SELECT pg_get_indexdef(c2.oid), 2 AS rank</span>
+<span class="sd">                FROM pg_index x</span>
+<span class="sd">                JOIN pg_class c ON x.indrelid = c.oid</span>
+<span class="sd">                JOIN pg_class c2 ON x.indexrelid = c2.oid</span>
+<span class="sd">                JOIN pg_namespace n ON c.relnamespace = n.oid</span>
+<span class="sd">                LEFT JOIN pg_constraint con ON c2.relname = con.conname</span>
+<span class="sd">                    AND c2.relnamespace = con.connamespace</span>
+<span class="sd">                WHERE NOT x.indisprimary AND con.oid IS NULL AND ({0})</span>
+<span class="sd">            )</span>
+<span class="sd">            UNION</span>
+<span class="sd">            (</span>
+<span class="sd">            /*  this gets foreign keys defined on other tables that reference the</span>
+<span class="sd">                tables of interest and sets rank = 4</span>
+<span class="sd">            */</span>
+<span class="sd">                SELECT &#39;ALTER TABLE &#39;||n2.nspname||&#39;.&quot;&#39;||c2.relname||&#39;&quot; ADD CONSTRAINT &quot;&#39;</span>
+<span class="sd">                    ||con.conname||&#39;&quot; &#39;||pg_get_constraintdef(con.oid) AS statement,</span>
+<span class="sd">                    4 AS rank</span>
+<span class="sd">                FROM pg_constraint con</span>
+<span class="sd">                JOIN pg_class c ON con.confrelid = c.oid</span>
+<span class="sd">                JOIN pg_namespace n ON c.relnamespace = n.oid</span>
+<span class="sd">                JOIN pg_class c2 ON con.conrelid = c2.oid</span>
+<span class="sd">                JOIN pg_namespace n2 ON c2.relnamespace = n2.oid</span>
+<span class="sd">                WHERE con.contype = &#39;f&#39; AND ({0}) AND NOT ({1}))</span>
+<span class="sd">            ORDER BY rank&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="s2">&quot; OR &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="sa">f</span><span class="s2">&quot;(n.nspname = &#39;</span><span class="si">{</span><span class="n">schema</span><span class="si">}</span><span class="s2">&#39; AND c.relname = &#39;</span><span class="si">{</span><span class="n">table</span><span class="si">}</span><span class="s2">&#39;)&quot;</span>
+                        <span class="k">for</span> <span class="n">schema</span><span class="p">,</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">table_list</span>
+                    <span class="p">]</span>
+                <span class="p">),</span>
+                <span class="s2">&quot; OR &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="sa">f</span><span class="s2">&quot;(n2.nspname = &#39;</span><span class="si">{</span><span class="n">schema</span><span class="si">}</span><span class="s2">&#39; AND c2.relname = &#39;</span><span class="si">{</span><span class="n">table</span><span class="si">}</span><span class="s2">&#39;)&quot;</span>
+                        <span class="k">for</span> <span class="n">schema</span><span class="p">,</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">table_list</span>
+                    <span class="p">]</span>
+                <span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">dont_use_savepoint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()]</span></div>
+
+
+<div class="viewcode-block" id="LoggingCursor.drop_table_constraints">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.drop_table_constraints">[docs]</a>
+    <span class="k">def</span> <span class="nf">drop_table_constraints</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">table_list</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Takes a list of tables and finds all constraints defined on them, then</span>
+<span class="sd">        drops them.  Foreign key constraints are processed first because</span>
+<span class="sd">        attempting to drop a unique key on a column that is referenced in a</span>
+<span class="sd">        foreign key results in an error.</span>
+
+<span class="sd">        :param table_list: The list of tables to get constraints on</span>
+<span class="sd">        :param dry_run: Do a dry run</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">table_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">split_schema_from_table</span><span class="p">(</span><span class="n">table</span><span class="p">)</span> <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">table_list</span><span class="p">]</span>
+        <span class="c1"># order constraints to list foreign keys first for dropping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;WITH t AS (SELECT n.nspname, c.relname, con.conname, con.contype</span>
+<span class="sd">            FROM pg_constraint con</span>
+<span class="sd">            JOIN pg_class c ON con.conrelid = c.oid</span>
+<span class="sd">            JOIN pg_namespace n ON c.relnamespace = n.oid</span>
+<span class="sd">            WHERE {0}</span>
+<span class="sd">            UNION</span>
+<span class="sd">            SELECT n2.nspname, c2.relname, con.conname, con.contype</span>
+<span class="sd">            FROM pg_constraint con</span>
+<span class="sd">            JOIN pg_class c ON con.confrelid = c.oid</span>
+<span class="sd">            JOIN pg_namespace n ON c.relnamespace = n.oid</span>
+<span class="sd">            JOIN pg_class c2 ON con.conrelid = c2.oid</span>
+<span class="sd">            JOIN pg_namespace n2 ON c2.relnamespace = n2.oid</span>
+<span class="sd">            WHERE con.contype = &#39;f&#39; AND ({0}))</span>
+<span class="sd">            SELECT nspname, relname, conname</span>
+<span class="sd">            FROM t</span>
+<span class="sd">            ORDER BY CASE WHEN contype = &#39;f&#39; THEN 0 ELSE 1 END&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="s2">&quot; OR &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="sa">f</span><span class="s2">&quot;(n.nspname = &#39;</span><span class="si">{</span><span class="n">schema</span><span class="si">}</span><span class="s2">&#39; AND c.relname = &#39;</span><span class="si">{</span><span class="n">table</span><span class="si">}</span><span class="s2">&#39;)&quot;</span>
+                        <span class="k">for</span> <span class="n">schema</span><span class="p">,</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">table_list</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+            <span class="n">dont_use_savepoint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">constraints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">nspname</span><span class="p">,</span> <span class="n">relname</span><span class="p">,</span> <span class="n">conname</span> <span class="ow">in</span> <span class="n">constraints</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;ALTER TABLE </span><span class="si">{</span><span class="n">nspname</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">relname</span><span class="si">}</span><span class="s2"> DROP CONSTRAINT </span><span class="si">{</span><span class="n">conname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">dry_run</span><span class="o">=</span><span class="n">dry_run</span><span class="p">,</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LoggingCursor.drop_table_keys">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.drop_table_keys">[docs]</a>
+    <span class="k">def</span> <span class="nf">drop_table_keys</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">table_list</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Takes a list of tables and drops all indexes defined on them.</span>
+
+<span class="sd">        :param table_list: The list of tables to drop index on</span>
+<span class="sd">        :param dry_run: Do a dry run</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">table_list</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">table_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">split_schema_from_table</span><span class="p">(</span><span class="n">table</span><span class="p">)</span> <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">table_list</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;SELECT n.nspname, c.relname AS table_name, c2.relname AS index_name</span>
+<span class="sd">            FROM pg_index x</span>
+<span class="sd">            JOIN pg_class c ON x.indrelid = c.oid</span>
+<span class="sd">            JOIN pg_class c2 ON x.indexrelid = c2.oid</span>
+<span class="sd">            JOIN pg_namespace n ON c.relnamespace = n.oid</span>
+<span class="sd">            WHERE NOT x.indisprimary AND {}&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="s2">&quot; OR &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="sa">f</span><span class="s2">&quot;(n.nspname = &#39;</span><span class="si">{</span><span class="n">schema</span><span class="si">}</span><span class="s2">&#39; AND c.relname = &#39;</span><span class="si">{</span><span class="n">table</span><span class="si">}</span><span class="s2">&#39;)&quot;</span>
+                        <span class="k">for</span> <span class="n">schema</span><span class="p">,</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">table_list</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+            <span class="n">dont_use_savepoint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">indexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">nspname</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">index_name</span> <span class="ow">in</span> <span class="n">indexes</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DROP INDEX </span><span class="si">{</span><span class="n">nspname</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">index_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="n">dry_run</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LoggingCursor.get_db_table_columns">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.get_db_table_columns">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_db_table_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the list of all non-generated column names for a PostgreSQL table.</span>
+
+<span class="sd">        :param table_name: The possibly schema qualified table name</span>
+<span class="sd">        :return: The list of non-generated columns from the table, ordered by their</span>
+<span class="sd">            position in the database</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">table</span><span class="p">,</span> <span class="n">schema</span> <span class="o">=</span> <span class="n">split_schema_from_table</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;SELECT column_name</span>
+<span class="sd">            FROM information_schema.columns </span>
+<span class="sd">            WHERE is_generated &lt;&gt; &#39;ALWAYS&#39; AND table_schema = %s AND table_name = %s</span>
+<span class="sd">            ORDER BY ordinal_position&quot;&quot;&quot;</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">schema</span><span class="p">),</span>
+            <span class="n">dont_use_savepoint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()]</span></div>
+
+
+<div class="viewcode-block" id="LoggingCursor.confirm_table_and_file_columns_match">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.confirm_table_and_file_columns_match">[docs]</a>
+    <span class="k">def</span> <span class="nf">confirm_table_and_file_columns_match</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">table_fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">table_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="p">,</span>
+        <span class="n">sanitize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">allow_columns_subset</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Confirm that the field names in a table match those of a file.</span>
+
+<span class="sd">        :param table_fn: The file name of the data source to check</span>
+<span class="sd">        :param table_name: The name of the database table to check</span>
+<span class="sd">        :param sep: The column separator to use</span>
+<span class="sd">        :param sanitize: Whether to sanitize column names with</span>
+<span class="sd">            :func:`~actio_python_utils.utils.get_csv_fields`</span>
+<span class="sd">        :param allow_columns_subset: Whether to allow loading to the table with</span>
+<span class="sd">            only a subset of the columns</span>
+<span class="sd">        :raises ValueError: If file columns do not match database table columns</span>
+<span class="sd">        :return: The list of column names to load</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="n">get_csv_fields</span><span class="p">(</span><span class="n">table_fn</span><span class="p">,</span> <span class="n">sep</span><span class="p">,</span> <span class="n">sanitize</span><span class="p">)</span>
+        <span class="n">db_table_columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_db_table_columns</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">db_table_columns</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">table_fn</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> fields match.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">allow_columns_subset</span> <span class="ow">and</span> <span class="nb">set</span><span class="p">(</span><span class="n">csv_fields</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">db_table_fields</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">table_fn</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> fields do no match, but the file&#39;s &quot;</span>
+                <span class="s2">&quot;are a subset of database.  Continuing.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
+            <span class="n">db_table_columns</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">db_columns</span><span class="p">)</span>
+            <span class="n">extra</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">fields</span> <span class="o">-</span> <span class="n">db_table_columns</span><span class="p">)</span>
+            <span class="n">missing</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">db_table_columns</span> <span class="o">-</span> <span class="n">fields</span><span class="p">)</span>
+            <span class="n">extra_clause</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Extra columns:</span><span class="se">\n</span><span class="si">{</span><span class="n">extra</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">extra</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">missing_clause</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Missing columns:</span><span class="se">\n</span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">missing</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">table_fn</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> do not match.</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Specification (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span><span class="si">}</span><span class="s2"> columns):</span><span class="se">\n</span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Database (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">db_table_columns</span><span class="p">)</span><span class="si">}</span><span class="s2">):</span><span class="se">\n</span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">db_table_columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">extra_clause</span><span class="si">}{</span><span class="n">missing_clause</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">fields</span></div>
+
+
+<div class="viewcode-block" id="LoggingCursor.import_table">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.LoggingCursor.html#actio_python_utils.database_functions.LoggingCursor.import_table">[docs]</a>
+    <span class="k">def</span> <span class="nf">import_table</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">table_fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">table_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">csv_format</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="p">,</span>
+        <span class="n">sanitize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">truncate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">header</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">quote</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&#39;</span><span class="se">\&quot;</span><span class="s2">&#39;&quot;</span><span class="p">,</span>
+        <span class="n">escape</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&#39;</span><span class="se">\&quot;</span><span class="s2">&#39;&quot;</span><span class="p">,</span>
+        <span class="n">allow_columns_subset</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">fields</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a PostgreSQL CSV or TEXT format file to the database</span>
+
+<span class="sd">        :param table_fn: The file name of the data source to load</span>
+<span class="sd">        :param table_name: The name of the database table to load to</span>
+<span class="sd">        :param csv_format: Whether to use CSV format (otherwise TEXT)</span>
+<span class="sd">        :param sep: The column separator to use</span>
+<span class="sd">        :param sanitize: Whether to sanitize column names with</span>
+<span class="sd">            :func:`~actio_python_utils.utils.get_csv_fields`</span>
+<span class="sd">        :param truncate: Whether to truncate the table before loading</span>
+<span class="sd">        :param header: Whether the file has a header row</span>
+<span class="sd">        :param quote: The quote character</span>
+<span class="sd">        :param escape: The escape character</span>
+<span class="sd">        :param allow_columns_subset: Whether to allow loading to the table with</span>
+<span class="sd">            only a subset of the columns</span>
+<span class="sd">        :param fields: A list of fields for the file; this value is required if</span>
+<span class="sd">            there is no header</span>
+<span class="sd">        :raises ValueError: If header and fields specified or if neither is</span>
+<span class="sd">            specified</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">header</span> <span class="o">==</span> <span class="nb">bool</span><span class="p">(</span><span class="n">fields</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;One of header or fields must be specified and not both.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">header</span><span class="p">:</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">confirm_table_and_file_columns_match</span><span class="p">(</span>
+                <span class="n">table_fn</span><span class="p">,</span>
+                <span class="n">table_name</span><span class="p">,</span>
+                <span class="n">sep</span><span class="o">=</span><span class="n">sep</span> <span class="k">if</span> <span class="n">csv_format</span> <span class="k">else</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">sanitize</span><span class="o">=</span><span class="n">sanitize</span><span class="p">,</span>
+                <span class="n">allow_columns_subset</span><span class="o">=</span><span class="n">allow_columns_subset</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">fields_string</span> <span class="o">=</span> <span class="s1">&#39;&quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;&quot;,&quot;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fields</span><span class="p">))</span>
+        <span class="n">statement</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;COPY </span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">fields_string</span><span class="si">}</span><span class="s2">) FROM STDIN&quot;</span>
+        <span class="k">if</span> <span class="n">csv_format</span><span class="p">:</span>
+            <span class="n">statement</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; CSV DELIMITER &#39;</span><span class="si">{</span><span class="n">sep</span><span class="si">}</span><span class="s2">&#39; QUOTE </span><span class="si">{</span><span class="n">quote</span><span class="si">}</span><span class="s2"> ESCAPE </span><span class="si">{</span><span class="n">escape</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">truncate</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;TRUNCATE TABLE </span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> RESTART IDENTITY&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">table_fn</span><span class="p">,</span> <span class="s2">&quot;rt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">table_fh</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">header</span><span class="p">:</span>
+                <span class="nb">next</span><span class="p">(</span><span class="n">table_fh</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">copy_expert</span><span class="p">(</span><span class="n">statement</span><span class="p">,</span> <span class="n">table_fh</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SavepointCursor">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor">[docs]</a>
+<span class="k">class</span> <span class="nc">SavepointCursor</span><span class="p">(</span><span class="n">LoggingCursor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wraps :class:`LoggingCursor` methods to use a savepoint context manager</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SavepointCursor.copy_expert">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.copy_expert">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">copy_expert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">copy_expert</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SavepointCursor.copy_from">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.copy_from">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">copy_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">copy_from</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SavepointCursor.copy_to">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.copy_to">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">copy_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">copy_to</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SavepointCursor.execute">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.execute">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SavepointCursor.get_table_constraint_statements">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.get_table_constraint_statements">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">get_table_constraint_statements</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get_table_constraint_statements</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SavepointCursor.drop_table_constraints">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.drop_table_constraints">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">drop_table_constraints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">drop_table_constraints</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SavepointCursor.drop_table_keys">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.drop_table_keys">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">drop_table_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">drop_table_keys</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SavepointCursor.get_db_table_columns">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.get_db_table_columns">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">get_db_table_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get_db_table_columns</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SavepointCursor.import_table">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.SavepointCursor.html#actio_python_utils.database_functions.SavepointCursor.import_table">[docs]</a>
+    <span class="nd">@savepoint_wrapper</span>
+    <span class="k">def</span> <span class="nf">import_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">import_table</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="replace_dict_values_with_global_definition">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.replace_dict_values_with_global_definition.html#actio_python_utils.database_functions.replace_dict_values_with_global_definition">[docs]</a>
+<span class="k">def</span> <span class="nf">replace_dict_values_with_global_definition</span><span class="p">(</span>
+    <span class="n">mapping</span><span class="p">:</span> <span class="n">MutableMapping</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">global_mapping</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="nb">globals</span><span class="p">(),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MutableMapping</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Replaces values in the mapping with those in global_mapping when the value</span>
+<span class="sd">    is a str and it is a key in the global mapping</span>
+
+<span class="sd">    :param mapping: The mapping for which to replace values</span>
+<span class="sd">    :param global_mapping: The mapping from which to get replacement values</span>
+<span class="sd">    :return: Updated mapping replacing (key, value) with</span>
+<span class="sd">        (key, global_mapping[value]) for appropriate keys</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">mapping</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">global_mapping</span><span class="p">:</span>
+            <span class="n">mapping</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">global_mapping</span><span class="p">[</span><span class="n">value</span><span class="p">]</span></div>
+
+
+
+<span class="c1"># replace cursor_factory with the value defined here</span>
+<span class="n">replace_dict_values_with_global_definition</span><span class="p">(</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;db&quot;</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="get_db_args">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.get_db_args.html#actio_python_utils.database_functions.get_db_args">[docs]</a>
+<span class="k">def</span> <span class="nf">get_db_args</span><span class="p">(</span>
+    <span class="n">service</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">db_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">logger</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cursor_factory</span><span class="p">:</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">cursor</span> <span class="o">=</span> <span class="n">LoggingCursor</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a dict of arguments to log in with psycopg2.</span>
+<span class="sd">    Resolution order for connecting to a database is as follows:</span>
+
+<span class="sd">    #.</span>
+
+<span class="sd">       #. service, referring to a PostgreSQL service name, normally defined</span>
+<span class="sd">          in ``~/.pg_service.conf``</span>
+<span class="sd">       #. db_args, arbitrary dictionary of arguments</span>
+
+<span class="sd">    #. Environment variable ``$DB_CONNECTION_STRING`` with format::</span>
+
+<span class="sd">        postgres://your_user:your_password@your_host:your_port/your_database</span>
+
+<span class="sd">    #. Environment variable ``$PGSERVICE``, referring to a PostgreSQL service name</span>
+<span class="sd">    #. ``cfg[&quot;db&quot;]``, which should resolve to a dictionary of arguments</span>
+
+<span class="sd">    :param service: The PostgreSQL service to connect to</span>
+<span class="sd">    :param db_args: A mapping of database connection arguments</span>
+<span class="sd">    :param logger: Optional logger to write to</span>
+<span class="sd">    :param cursor_factory: The class of cursor to use for the</span>
+<span class="sd">        connection by default (used for ``service``/``$DB_CONNECTION_STRING``)</span>
+<span class="sd">    :raises ValueError: If ``service`` and ``db_args`` are specified</span>
+<span class="sd">    :return: The dict of login arguments</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Check for environment variables</span>
+    <span class="n">db_connection_string</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;DB_CONNECTION_STRING&quot;</span><span class="p">)</span>
+    <span class="n">pgservice</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;PGSERVICE&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">db_args</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Specify up to one of service/db_args, not both.&quot;</span><span class="p">)</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Using service for login.&quot;</span>
+        <span class="n">db_args</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">service</span><span class="p">,</span> <span class="s2">&quot;cursor_factory&quot;</span><span class="p">:</span> <span class="n">cursor_factory</span><span class="p">}</span>
+    <span class="k">elif</span> <span class="n">db_args</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Using db_args for login.&quot;</span>
+        <span class="n">db_args</span> <span class="o">=</span> <span class="n">db_args</span>
+    <span class="k">elif</span> <span class="n">db_connection_string</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Using DB_CONNECTION_STRING environment variable for login.&quot;</span>
+        <span class="n">db_args</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;dsn&quot;</span><span class="p">:</span> <span class="n">db_connection_string</span><span class="p">,</span>
+            <span class="s2">&quot;cursor_factory&quot;</span><span class="p">:</span> <span class="n">cursor_factory</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="k">elif</span> <span class="n">pgservice</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Using PGSERVICE environment variable for login.&quot;</span>
+        <span class="n">db_args</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">pgservice</span><span class="p">,</span> <span class="s2">&quot;cursor_factory&quot;</span><span class="p">:</span> <span class="n">cursor_factory</span><span class="p">}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Using cfg for login.&quot;</span>
+        <span class="n">db_args</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;db&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">db_args</span></div>
+
+
+
+<div class="viewcode-block" id="DBConnection">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.DBConnection.html#actio_python_utils.database_functions.DBConnection">[docs]</a>
+<span class="k">class</span> <span class="nc">DBConnection</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a psycopg2 database connection with the specified parameters and</span>
+<span class="sd">    acts as a context manager.</span>
+
+<span class="sd">    :param service: The PostgreSQL service to connect to</span>
+<span class="sd">    :param db_args: A mapping of database connection arguments</span>
+<span class="sd">    :param log_name: The name to give the logger</span>
+<span class="sd">    :param commit: Commit the transaction upon closing the connection if no</span>
+<span class="sd">        errors were encountered</span>
+<span class="sd">    :param cursor_factory: The class of cursor to use for the connection</span>
+<span class="sd">        by default (used for ``service``/``$DB_CONNECTION_STRING``)</span>
+<span class="sd">    :raises ValueError: If ``service`` and ``db_args`` are specified</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="DBConnection.__init__">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.DBConnection.html#actio_python_utils.database_functions.DBConnection.__init__">[docs]</a>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">service</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">db_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">log_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;logging&quot;</span><span class="p">][</span><span class="s2">&quot;names&quot;</span><span class="p">][</span><span class="s2">&quot;db&quot;</span><span class="p">],</span>
+        <span class="n">commit</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">cursor_factory</span><span class="p">:</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">cursor</span> <span class="o">=</span> <span class="n">LoggingCursor</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">log_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commit</span> <span class="o">=</span> <span class="n">commit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_args</span> <span class="o">=</span> <span class="n">get_db_args</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="n">db_args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">,</span> <span class="n">cursor_factory</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DBConnection.connect">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.DBConnection.html#actio_python_utils.database_functions.DBConnection.connect">[docs]</a>
+    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Connects to the database and creates attributes ``db`` and ``cursor``</span>
+<span class="sd">        for the connection and a cursor, respectively</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Connecting to DB with parameters: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">db_args</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">db_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cur</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="DBConnection.disconnect">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.DBConnection.html#actio_python_utils.database_functions.DBConnection.disconnect">[docs]</a>
+    <span class="k">def</span> <span class="nf">disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Disconnect from the database and commit if ``self.commit = True`` and</span>
+<span class="sd">        no exception has been raised</span>
+
+<span class="sd">        :param exception: Whether an exception has been raised or not</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commit</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">exception</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Committing changes.&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For use as a context manager, creates and returns a database connection</span>
+
+<span class="sd">        :return: The database connection</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span>
+
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">exc_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">type</span><span class="p">[</span><span class="ne">BaseException</span><span class="p">]],</span>
+        <span class="n">exc_val</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">BaseException</span><span class="p">],</span>
+        <span class="n">traceback</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TracebackType</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For use as a context manager, disconnects the database connection</span>
+
+<span class="sd">        :return: Whether an exception has occurred</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disconnect</span><span class="p">(</span><span class="n">exc_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="connect_to_db">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.database_functions.connect_to_db.html#actio_python_utils.database_functions.connect_to_db">[docs]</a>
+<span class="k">def</span> <span class="nf">connect_to_db</span><span class="p">(</span>
+    <span class="n">service</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">db_args</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MutableMapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a connection to the specified PostgreSQL database</span>
+
+<span class="sd">    :param service: The PostgreSQL service to connect to</span>
+<span class="sd">    :param db_args: A mapping of database connection arguments</span>
+<span class="sd">    :return: The database connection</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">db_args</span> <span class="o">=</span> <span class="n">get_db_args</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="n">db_args</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Connecting to DB with parameters: </span><span class="si">{</span><span class="n">db_args</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="o">**</span><span class="n">db_args</span><span class="p">)</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../history.html">History</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.database_functions</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>

@@ -1,6 +1,7 @@
 """
 Logging-related functionality.
 """
+
 import _io
 import logging
 from contextlib import contextmanager
@@ -10,19 +11,19 @@ from .utils import cfg
 
 class LazyLogger(logging.Logger):
     """
-    Wraps a Logger to accept either a message or a function to evaluate to
-    produce the desired message.  If a function is provided it is evaluated
-    lazily, i.e. only if the logger is enabled for the appropriate level.
+    Wraps a :class:`logging.Logger` to accept either a message or a function
+    to evaluate to produce the desired message.  If a function is provided it
+    is evaluated lazily, i.e. only if the logger is enabled for the appropriate
+    level.
     """
 
     def _get_msg(self, msg_or_func: Any) -> Any:
         """
-        Evaluates and returns msg_or_func() if it is callable, otherwise just
+        Evaluates and returns `msg_or_func()` if it is callable, otherwise just
         returns it
 
-        :param msg_or_func: Any
+        :param msg_or_func: The object to wrap
         :return: The logging message or callable to evaluate
-        :rtype: Any
         """
         if callable(msg_or_func):
             return msg_or_func()
@@ -75,7 +76,6 @@ def log(level: int | str) -> None:
     and return to the previous level after exiting
 
     :param level: The logging level to use temporarily
-    :type level: int or str
     """
     logger = logging.getLogger()
     current_level = logger.getEffectiveLevel()
@@ -96,24 +96,17 @@ def setup_logging(
 ) -> None:
     """
     Set up the logger given by name, attach a stream handler, set the format,
-    and log levels as specified.  For logger names in loggers_to_ignore, their
-    levels are instead set to logging.CRITICAL
+    and log levels as specified.  For logger names in ``loggers_to_ignore``,
+    their levels are instead set to ``logging.CRITICAL``
 
-    :param logging_level: The logging level to use, defaults to
-        cfg["logging"]["level"]
-    :type logging_level: int or str
-    :param str name: The name of the logger to configure, defaults to "root"
-    :param stream: An optional output stream to log to, defaults to None
-    :type stream: _io.TextIOWrapper or None
+    :param logging_level: The logging level to use
+    :param name: The name of the logger to configure
+    :param stream: An optional output stream to log to
     :param stream_handler_logging_level: The logging level to use for the
-        handler; uses logging_level if not specified, defaults to None
-    :type stream_handler_logging_level: int or str or None
-    :param str format_string: How to format log messages, defaults to
-        cfg["logging"]["format"]
+        handler; uses ``logging_level`` if not specified
+    :param format_string: How to format log messages
     :param loggers_to_ignore: A list of logger names for which to set their
-        logging levels to logging.CRITICAL, defaults to
-        cfg["logging"]["loggers_to_ignore"]
-    :type loggers_to_ignore: list or None
+        logging levels to ``logging.CRITICAL``
     """
     logger_to_configure = logging.getLogger(name)
     if logger_to_configure.hasHandlers():

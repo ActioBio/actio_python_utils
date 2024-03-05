@@ -1,6 +1,7 @@
 """
 Code for argparse-related functionality.
 """
+
 import _io
 import argparse
 import inspect
@@ -25,18 +26,30 @@ current_frame = inspect.currentframe()
 while current_frame.f_globals["__name__"] != "__main__":
     current_frame = current_frame.f_back
 
+
 class ZFileType(argparse.FileType):
-    def __call__(self, string):
+    """
+    :class:`argparse.FileType` that opens specified argument using
+    :func:`~actio_python_utils.utils.zopen`
+    """
+
+    def __call__(self, string: str) -> _io.TextIOWrapper:
+        """
+        :param string: The argument to pass to
+            :func:`~actio_python_utils.utils.zopen` for opening
+        :return: A file handle opening `string` appropriately
+        """
         if string == "-":
             return super().__call__(string)
         else:
             return utils.zopen(string, self._mode)
 
+
 class CustomFormatter(
     argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpFormatter
 ):
     """
-    argparse.HelpFormatter that displays argument defaults and doesn't
+    :class:`argparse.HelpFormatter` that displays argument defaults and doesn't
     change formatting of the description
     """
 
@@ -47,11 +60,10 @@ def key_value_pair(arg: str, sep: str = "=") -> tuple[str, str]:
     """
     Splits a string once on sep and returns the result
 
-    :param str arg: The string to split on
-    :param str sep: The separator to split the string on, defaults to "="
-    :raises ValueError: If sep does not occur in arg
-    :return: The string split on sep once
-    :rtype: list
+    :param arg: The string to split on
+    :param sep: The separator to split the string on
+    :raises ValueError: If ``sep`` does not occur in ``arg``
+    :return: The string split on ``sep`` once
     """
     if "=" in arg:
         return arg.split("=", 1)
@@ -60,12 +72,11 @@ def key_value_pair(arg: str, sep: str = "=") -> tuple[str, str]:
 
 def file_exists(fn: str) -> str:
     """
-    Returns the real path to file fn if it exists
+    Returns the real path to file ``fn`` if it exists
 
-    :param str fn: The file name to check
-    :raises OSError: If fn doesn't exist
-    :return: The real path to fn
-    :rtype: str
+    :param fn: The file name to check
+    :raises OSError: If ``fn`` doesn't exist
+    :return: The real path to ``fn``
     """
     if os.path.isfile(fn):
         return os.path.realpath(fn)
@@ -75,12 +86,11 @@ def file_exists(fn: str) -> str:
 
 def dir_exists(dirn: str) -> str:
     """
-    Returns the real path to directory dirn if it exists
+    Returns the real path to directory ``dirn`` if it exists
 
-    :param str dirn: The directory name to check
-    :raises OSError: If dirn doesn't exist
-    :return: The real path to dirn
-    :rtype: str
+    :param dirn: The directory name to check
+    :raises OSError: If ``dirn`` doesn't exist
+    :return: The real path to ``dirn``
     """
     if os.path.isdir(dirn):
         return os.path.realpath(dirn)
@@ -92,10 +102,9 @@ def str_from_file(fn: str) -> str:
     """
     Returns the text from a file name
 
-    :param str fn: The file name to read
-    :raises OSError: if fn doesn't exist
-    :return: The string representing the content of fn
-    :rtype: str
+    :param fn: The file name to read
+    :raises OSError: if ``fn`` doesn't exist
+    :return: The string representing the content of ``fn``
     """
     if os.path.isfile(fn):
         with utils.zopen(fn) as fh:
@@ -105,39 +114,38 @@ def str_from_file(fn: str) -> str:
 
 
 class EnhancedArgumentParser(argparse.ArgumentParser):
-    """
-    Customized ArgumentParser that sets description automatically, uses both
-    ArgumentDefaultsHelpFormatter and RawTextHelpFormatter formatters,
-    optionally sets up logging, database, and Spark connections.
+    r"""
+    Customized :class:`argparse.ArgumentParser` that sets description
+    automatically, uses both
+    :class:`argparse.ArgumentDefaultsHelpFormatter` and
+    :class:`argparse.RawTextHelpFormatter` formatters,
+    optionally sets up logging, database, and PySpark connections.
 
-    :param *args: Optional positional arguments passed to
-        argparse.ArgumentParser constructor
-    :param str description: Passed to argparse.ArgumentParser constructor,
-        defaults to current_frame.f_globals.get("__doc__", "")
-    :param argparse.HelpFormatter formatter_class: The help formatter to use,
-        defaults to CustomFormatter
-    :param bool use_logging: Adds log level and log format arguments, then sets up
-        parsing when parse_args() is called, defaults to False
-    :param bool use_database: Adds a database service argument, then creates a
+    :param \*args: Optional positional arguments passed to
+        :func:`argparse.ArgumentParser` constructor
+    :param description: Passed to :func:`argparse.ArgumentParser` constructor
+    :param formatter_class: The help formatter to use
+    :param use_logging: Adds log level and log format arguments, then sets up
+        parsing when :meth:`parse_args` is called
+    :param use_database: Adds a database service argument, then creates a
         connection to the specified database with the attribute name db when
-        parse_args() is called, defaults to False
-    :param bool use_spark: Adds spark cores, spark memory, and spark config
+        :meth:`parse_args` is called
+    :param use_spark: Adds spark cores, spark memory, and spark config
         arguments, then creates a PySpark session with the attribute name spark
-        when parse_args() is called, defaults to False
-    :param bool use_xml: Adds dependencies to PySpark to parse XML files; sets
-        use_spark = True, defaults to False
-    :param bool use_glow: Adds dependencies to PySpark to use glow, e.g. to parse
-        VCF files; sets use_spark = True, defaults to False
-    :param bool use_spark_db: Adds dependencies to PySpark to connect to a
-        database; sets use_spark = True and creates an object to create a
-        database connection with PySpark with the attribute name spark_db when
-        parse_args() is called, defaults to False
-    :param bool dont_create_db_connection: Don't create a database connection
-        even if use_database = True
+        when :meth:`parse_args` is called
+    :param use_xml: Adds dependencies to PySpark to parse XML files; sets
+        ``use_spark = True``
+    :param use_glow: Adds dependencies to PySpark to use glow, e.g. to parse
+        VCF files; sets ``use_spark = True``
+    :param use_spark_db: Adds dependencies to PySpark to connect to a
+        database; sets ``use_spark = True`` and creates an object to create a
+        database connection with PySpark with the attribute name ``spark_db`
+        when :meth:`parse_args` is called
+    :param dont_create_db_connection: Don't create a database connection
+        even if ``use_database = True``
     :param spark_extra_packages: Adds additional Spark package dependencies to
-        initialize; sets use_spark = True
-    :type spark_extra_packages: Iterable or None
-    :param **kwargs: Any additional named arguments
+        initialize; sets ``use_spark = True``
+    :param \**kwargs: Any additional named arguments
     """
 
     def __init__(
@@ -183,9 +191,8 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         """
         Converts the argument name to the variable actually used
 
-        :param str long_arg: The argument name
+        :param long_arg: The argument name
         :return: The reformatted argument
-        :rtype: str
         """
         return long_arg.lstrip("-").replace("-", "_")
 
@@ -196,16 +203,14 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         *args,
         **kwargs,
     ) -> None:
-        """
+        r"""
         Adds an argument while retaining metavar instead of dest in help
         message
 
-        :param short_arg: The short argument name, defaults to None
-        :type short_arg: str or None
-        :param long_arg: The long argument name, defaults to None
-        :type long_arg: str or None
-        :param *args: Any additional positional arguments
-        :param **kwargs: Any additional named arguments
+        :param short_arg: The short argument name
+        :param long_arg: The long argument name
+        :param \*args: Any additional positional arguments
+        :param \**kwargs: Any additional named arguments
         """
         call = partial(
             super().add_argument,
@@ -230,22 +235,22 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         spark_db_name: str = "spark_db",
         **kwargs,
     ) -> argparse.Namespace:
-        """
+        r"""
         Parses arguments while optionally setting up logging, database, and/or
         PySpark.
 
-        :param *args: Any additional positional arguments
-        :param str db_connection_name: The args attribute name to give to a
-            created database connection, defaults to "db"
-        :param str spark_name: The args attribute name to give to a created
-            PySpark session, defaults to "spark"
-        :param str spark_db_name: The args attribute name to give to PostgreSQL
-            login credentials for use with PySpark, defaults to "spark_db"
-        :param **kwargs: Any additional named arguments
-        :return: Parsed arguments, additionally with attribute db as a
-            database connection if use_database = True, with attribute spark
-            if use_spark = True, and attribute spark_db if use_spark_db = True
-        :rtype: argparse.Namespace
+        :param \*args: Any additional positional arguments
+        :param db_connection_name: The ``args`` attribute name to give to a
+            created database connection
+        :param spark_name: The ``args`` attribute name to give to a created
+            PySpark session
+        :param spark_db_name: The ``args`` attribute name to give to PostgreSQL
+            login credentials for use with PySpark
+        :param \**kwargs: Any additional named arguments
+        :return: Parsed arguments, additionally with attribute ``db`` as a
+            database connection if ``use_database = True``, with attribute
+            ``spark`` if ``use_spark = True``, and attribute ``spark_db`` if
+            ``use_spark_db = True``
         """
         args = super().parse_args(*args, **kwargs)
         if self.use_logging:
@@ -266,17 +271,14 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         default: str = utils.cfg["logging"]["level"],
         **kwargs,
     ) -> None:
-        """
+        r"""
         Adds an argument to set the logging level, converts it to the proper
-        integer, and sets dest = "log_level"
+        integer, and sets ``dest = "log_level"``
 
-        :param short_arg: Short argument name to use, defaults to "-l"
-        :type short_arg: str or None
-        :param long_arg: Long argument name to use, defaults to "--log-level"
-        :type long_arg: str or None
-        :param str default: Default logging level value, defaults to
-            utils.cfg["logging"]["level"]
-        :param **kwargs: Any additional named arguments
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param default: Default logging level value
+        :param \**kwargs: Any additional named arguments
         """
         self.add_argument(
             short_arg=short_arg,
@@ -295,16 +297,14 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         default: str = utils.cfg["logging"]["format"],
         **kwargs,
     ) -> None:
-        """
-        Adds an argument to set the logging format and sets dest = "log_format"
+        r"""
+        Adds an argument to set the logging format and sets
+        ``dest = "log_format"``
 
-        :param short_arg: Short argument name to use, defaults to "-f"
-        :type short_arg: str or None
-        :param long_arg: Long argument name to use, defaults to "--log-format"
-        :type long_arg: str or None
-        :param str default: Default logging format, defaults to
-            utils.cfg["logging"]["format"]
-        :param **kwargs: Any additional named arguments
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param default: Default logging format
+        :param \**kwargs: Any additional named arguments
         """
         self.add_argument(
             short_arg=short_arg,
@@ -322,17 +322,14 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         default: Optional[str] = None,
         **kwargs,
     ):
-        """
-        Adds an argument to set the database service name sets dest =
-        "db_service"
+        r"""
+        Adds an argument to set the database service name sets
+        ``dest = "db_service"``
 
-        :param short_arg: Short argument name to use, defaults to "-s"
-        :type short_arg: str or None
-        :param long_arg: Long argument name to use, defaults to "--service"
-        :type long_arg: str or None
-        :param default: Default service, defaults to None
-        :type default: str or None
-        :param **kwargs: Any additional named arguments
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param default: Default service
+        :param \**kwargs: Any additional named arguments
         """
         self.add_argument(
             short_arg=short_arg,
@@ -350,17 +347,14 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         default: int | str = utils.cfg["spark"]["cores"],
         **kwargs,
     ) -> None:
-        """
+        r"""
         Adds an argument to set the number of PySpark cores to use and sets
-        dest = "spark_cores"
+        ``dest = "spark_cores"``
 
-        :param short_arg: Short argument name to use, defaults to "-c"
-        :type short_arg: str or None
-        :param long_arg: Long argument name to use, defaults to "--spark-cores"
-        :type long_arg: str or None
-        :param default: Default cores, defaults to utils.cfg["spark"]["cores"]
-        :type default: int or str
-        :param **kwargs: Any additional named arguments
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param default: Default cores
+        :param \**kwargs: Any additional named arguments
         """
         self.add_argument(
             short_arg=short_arg,
@@ -378,17 +372,14 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         default: str = utils.cfg["spark"]["memory"],
         **kwargs,
     ) -> None:
-        """
+        r"""
         Adds an argument to set the amount of memory to give to PySpark and
-        sets dest = "spark_memory"
+        sets ``dest = "spark_memory"``
 
-        :param short_arg: Short argument name to use, defaults to "-m"
-        :type short_arg: str or None
-        :param long_arg: Long argument name to use, defaults to "--spark-memory"
-        :type long_arg: str or None
-        :param str default: Default memory to use, defaults to
-            utils.cfg["spark"]["memory"]
-        :param **kwargs: Any additional named arguments
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param default: Default memory to use
+        :param \**kwargs: Any additional named arguments
         """
         self.add_argument(
             short_arg=short_arg,
@@ -405,15 +396,13 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         long_arg: Optional[str] = "--spark-config",
         **kwargs,
     ) -> None:
-        """
+        r"""
         Adds an argument to provide 0 or more options to initialize the PySpark
-        session with and sets dest = "spark_config"
+        session with and sets ``dest = "spark_config"``
 
-        :param short_arg: Short argument name to use, defaults to None
-        :type short_arg: str or None
-        :param long_arg: Long argument name to use, defaults to "--spark-config"
-        :type long_arg: str or None
-        :param **kwargs: Any additional named arguments
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param \**kwargs: Any additional named arguments
         """
         self.add_argument(
             short_arg=short_arg,
@@ -431,16 +420,13 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         long_arg: Optional[str] = "--spark-load-config",
         **kwargs,
     ) -> None:
-        """
+        r"""
         Adds an argument to provide 0 or more options to load a dataframe
-        in PySpark with and sets dest = "spark_load_config"
+        in PySpark with and sets ``dest = "spark_load_config"``
 
-        :param short_arg: Short argument name to use, defaults to None
-        :type short_arg: str or None
-        :param long_arg: Long argument name to use, defaults to
-            "--spark-load-config"
-        :type long_arg: str or None
-        :param **kwargs: Any additional named arguments
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param \**kwargs: Any additional named arguments
         """
         self.add_argument(
             short_arg=short_arg,
@@ -460,27 +446,27 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         stream_handler_logging_level: Optional[str | int] = None,
     ) -> None:
         """
-        Sets up logging with ulf.setup_logging and specified log level and
-        format
+        Sets up logging with
+        :func:`~actio_python_utils.logging_functions.setup_logging` and
+        specified log level and format
 
-        :param argparse.Namespace args: Parsed arguments from parse_args()
-        :param str name: Logger name to initialize, defaults to "root"
-        :param stream: Stream to log to, defaults to None
-        :type stream: _io.TextIOWrapper or None
-        :param stream_handler_logging_level: Logging level to use for stream,
-            defaults to None
-        :type stream_handler_logging_level: str or int or None
+        :param args: Parsed arguments from :meth:`parse_args`
+        :param name: Logger name to initialize
+        :param stream: Stream to log to
+        :param stream_handler_logging_level: Logging level to use for stream
         """
         ulf.setup_logging(
-            logging_level=args.log_level
-            if "log_level" in args
-            else utils.cfg["logging"]["level"],
+            logging_level=(
+                args.log_level if "log_level" in args else utils.cfg["logging"]["level"]
+            ),
             name=name,
             stream=stream,
             stream_handler_logging_level=stream_handler_logging_level,
-            format_string=args.log_format
-            if "log_format" in args
-            else utils.cfg["logging"]["format"],
+            format_string=(
+                args.log_format
+                if "log_format" in args
+                else utils.cfg["logging"]["format"]
+            ),
         )
 
     def setup_database(
@@ -488,11 +474,10 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
     ) -> psycopg2.extensions.connection:
         """
         Returns a psycopg2 connection to the database specified in
-        args.db_service
+        `args.db_service`
 
-        :param argparse.Namespace args: Parsed arguments from parse_args()
+        :param args: Parsed arguments from :meth:`parse_args`
         :return: The psycopg2 connection
-        :rtype: psycopg2.extensions.connection
         """
         return udbf.connect_to_db(args.db_service if "db_service" in args else None)
 
@@ -501,22 +486,25 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
     ) -> tuple[pyspark.sql.session.SparkSession, pgtoolkit.pgpass.PassEntry]:
         """
         Returns a list with a created PySpark session and optionally a
-        PostgreSQL login record if use_spark_db = True
+        PostgreSQL login record if ``use_spark_db = True``
 
-        :param argparse.Namespace args: Parsed arguments from parse_args()
+        :param args: Parsed arguments from :meth:`parse_args`
         :return: A list with the created PySpark session and either a
-            pgtoolkit.pgpass.PassEntry record or None
-        :rtype: list
+            :class:`pgtoolkit.pgpass.PassEntry` record or ``None``
         """
         return_value = []
         return_value.append(
             usf.setup_spark(
-                cores=args.spark_cores
-                if "spark_cores" in args
-                else utils.cfg["spark"]["cores"],
-                memory=args.spark_memory
-                if "spark_memory" in args
-                else utils.cfg["spark"]["memory"],
+                cores=(
+                    args.spark_cores
+                    if "spark_cores" in args
+                    else utils.cfg["spark"]["cores"]
+                ),
+                memory=(
+                    args.spark_memory
+                    if "spark_memory" in args
+                    else utils.cfg["spark"]["memory"]
+                ),
                 use_xml=self.use_xml,
                 use_glow=self.use_glow,
                 use_db=self.use_spark_db,

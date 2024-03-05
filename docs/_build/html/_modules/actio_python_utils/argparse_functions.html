@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>actio_python_utils.argparse_functions &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b76e3c8a" />
+    <link rel="stylesheet" type="text/css" href="../../_static/nature.css?v=601dbdee" />
+    <script src="../../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.argparse_functions</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for actio_python_utils.argparse_functions</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Code for argparse-related functionality.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">_io</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pgtoolkit.pgpass</span>
+<span class="kn">import</span> <span class="nn">psycopg2.extensions</span>
+<span class="kn">import</span> <span class="nn">pyspark.sql</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">utils</span><span class="p">,</span>
+    <span class="n">database_functions</span> <span class="k">as</span> <span class="n">udbf</span><span class="p">,</span>
+    <span class="n">logging_functions</span> <span class="k">as</span> <span class="n">ulf</span><span class="p">,</span>
+    <span class="n">spark_functions</span> <span class="k">as</span> <span class="n">usf</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># get docstring from main class</span>
+<span class="n">current_frame</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">currentframe</span><span class="p">()</span>
+<span class="k">while</span> <span class="n">current_frame</span><span class="o">.</span><span class="n">f_globals</span><span class="p">[</span><span class="s2">&quot;__name__&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">current_frame</span> <span class="o">=</span> <span class="n">current_frame</span><span class="o">.</span><span class="n">f_back</span>
+
+
+<div class="viewcode-block" id="ZFileType">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.ZFileType.html#actio_python_utils.argparse_functions.ZFileType">[docs]</a>
+<span class="k">class</span> <span class="nc">ZFileType</span><span class="p">(</span><span class="n">argparse</span><span class="o">.</span><span class="n">FileType</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :class:`argparse.FileType` that opens specified argument using</span>
+<span class="sd">    :func:`~actio_python_utils.utils.zopen`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param string: The argument to pass to</span>
+<span class="sd">            :func:`~actio_python_utils.utils.zopen` for opening</span>
+<span class="sd">        :return: A file handle opening `string` appropriately</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">string</span> <span class="o">==</span> <span class="s2">&quot;-&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">utils</span><span class="o">.</span><span class="n">zopen</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mode</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="CustomFormatter">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.CustomFormatter.html#actio_python_utils.argparse_functions.CustomFormatter">[docs]</a>
+<span class="k">class</span> <span class="nc">CustomFormatter</span><span class="p">(</span>
+    <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentDefaultsHelpFormatter</span><span class="p">,</span> <span class="n">argparse</span><span class="o">.</span><span class="n">RawTextHelpFormatter</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :class:`argparse.HelpFormatter` that displays argument defaults and doesn&#39;t</span>
+<span class="sd">    change formatting of the description</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="key_value_pair">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.key_value_pair.html#actio_python_utils.argparse_functions.key_value_pair">[docs]</a>
+<span class="k">def</span> <span class="nf">key_value_pair</span><span class="p">(</span><span class="n">arg</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;=&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Splits a string once on sep and returns the result</span>
+
+<span class="sd">    :param arg: The string to split on</span>
+<span class="sd">    :param sep: The separator to split the string on</span>
+<span class="sd">    :raises ValueError: If ``sep`` does not occur in ``arg``</span>
+<span class="sd">    :return: The string split on ``sep`` once</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;=&quot;</span> <span class="ow">in</span> <span class="n">arg</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Argument must be formatted as KEY=VALUE.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="file_exists">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.file_exists.html#actio_python_utils.argparse_functions.file_exists">[docs]</a>
+<span class="k">def</span> <span class="nf">file_exists</span><span class="p">(</span><span class="n">fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the real path to file ``fn`` if it exists</span>
+
+<span class="sd">    :param fn: The file name to check</span>
+<span class="sd">    :raises OSError: If ``fn`` doesn&#39;t exist</span>
+<span class="sd">    :return: The real path to ``fn``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> does not exist.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="dir_exists">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.dir_exists.html#actio_python_utils.argparse_functions.dir_exists">[docs]</a>
+<span class="k">def</span> <span class="nf">dir_exists</span><span class="p">(</span><span class="n">dirn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the real path to directory ``dirn`` if it exists</span>
+
+<span class="sd">    :param dirn: The directory name to check</span>
+<span class="sd">    :raises OSError: If ``dirn`` doesn&#39;t exist</span>
+<span class="sd">    :return: The real path to ``dirn``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">dirn</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">dirn</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dirn</span><span class="si">}</span><span class="s2"> does not exist.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="str_from_file">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.str_from_file.html#actio_python_utils.argparse_functions.str_from_file">[docs]</a>
+<span class="k">def</span> <span class="nf">str_from_file</span><span class="p">(</span><span class="n">fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the text from a file name</span>
+
+<span class="sd">    :param fn: The file name to read</span>
+<span class="sd">    :raises OSError: if ``fn`` doesn&#39;t exist</span>
+<span class="sd">    :return: The string representing the content of ``fn``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">utils</span><span class="o">.</span><span class="n">zopen</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fh</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> does not exist.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser">[docs]</a>
+<span class="k">class</span> <span class="nc">EnhancedArgumentParser</span><span class="p">(</span><span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Customized :class:`argparse.ArgumentParser` that sets description</span>
+<span class="sd">    automatically, uses both</span>
+<span class="sd">    :class:`argparse.ArgumentDefaultsHelpFormatter` and</span>
+<span class="sd">    :class:`argparse.RawTextHelpFormatter` formatters,</span>
+<span class="sd">    optionally sets up logging, database, and PySpark connections.</span>
+
+<span class="sd">    :param \*args: Optional positional arguments passed to</span>
+<span class="sd">        :func:`argparse.ArgumentParser` constructor</span>
+<span class="sd">    :param description: Passed to :func:`argparse.ArgumentParser` constructor</span>
+<span class="sd">    :param formatter_class: The help formatter to use</span>
+<span class="sd">    :param use_logging: Adds log level and log format arguments, then sets up</span>
+<span class="sd">        parsing when :meth:`parse_args` is called</span>
+<span class="sd">    :param use_database: Adds a database service argument, then creates a</span>
+<span class="sd">        connection to the specified database with the attribute name db when</span>
+<span class="sd">        :meth:`parse_args` is called</span>
+<span class="sd">    :param use_spark: Adds spark cores, spark memory, and spark config</span>
+<span class="sd">        arguments, then creates a PySpark session with the attribute name spark</span>
+<span class="sd">        when :meth:`parse_args` is called</span>
+<span class="sd">    :param use_xml: Adds dependencies to PySpark to parse XML files; sets</span>
+<span class="sd">        ``use_spark = True``</span>
+<span class="sd">    :param use_glow: Adds dependencies to PySpark to use glow, e.g. to parse</span>
+<span class="sd">        VCF files; sets ``use_spark = True``</span>
+<span class="sd">    :param use_spark_db: Adds dependencies to PySpark to connect to a</span>
+<span class="sd">        database; sets ``use_spark = True`` and creates an object to create a</span>
+<span class="sd">        database connection with PySpark with the attribute name ``spark_db`</span>
+<span class="sd">        when :meth:`parse_args` is called</span>
+<span class="sd">    :param dont_create_db_connection: Don&#39;t create a database connection</span>
+<span class="sd">        even if ``use_database = True``</span>
+<span class="sd">    :param spark_extra_packages: Adds additional Spark package dependencies to</span>
+<span class="sd">        initialize; sets ``use_spark = True``</span>
+<span class="sd">    :param \**kwargs: Any additional named arguments</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="EnhancedArgumentParser.__init__">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.__init__">[docs]</a>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">current_frame</span><span class="o">.</span><span class="n">f_globals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;__doc__&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">formatter_class</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">HelpFormatter</span> <span class="o">=</span> <span class="n">CustomFormatter</span><span class="p">,</span>
+        <span class="n">use_logging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">use_database</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">use_spark</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">use_xml</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">use_glow</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">use_spark_db</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">dont_create_db_connection</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">spark_extra_packages</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span> <span class="n">formatter_class</span><span class="o">=</span><span class="n">formatter_class</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_logging</span> <span class="o">=</span> <span class="n">use_logging</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_database</span> <span class="o">=</span> <span class="n">use_database</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_spark</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">use_spark</span><span class="p">,</span> <span class="n">use_xml</span><span class="p">,</span> <span class="n">use_glow</span><span class="p">,</span> <span class="n">use_spark_db</span><span class="p">,</span> <span class="n">spark_extra_packages</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_xml</span> <span class="o">=</span> <span class="n">use_xml</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_glow</span> <span class="o">=</span> <span class="n">use_glow</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_spark_db</span> <span class="o">=</span> <span class="n">use_spark_db</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dont_create_db_connection</span> <span class="o">=</span> <span class="n">dont_create_db_connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spark_extra_packages</span> <span class="o">=</span> <span class="n">spark_extra_packages</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_logging</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_log_level_argument</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_log_format_argument</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_database</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_spark_db</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_db_service_argument</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_spark</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_spark_cores_argument</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_spark_memory_argument</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_spark_config_argument</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.sanitize_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.sanitize_argument">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">sanitize_argument</span><span class="p">(</span><span class="n">long_arg</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts the argument name to the variable actually used</span>
+
+<span class="sd">        :param long_arg: The argument name</span>
+<span class="sd">        :return: The reformatted argument</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">long_arg</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.add_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_argument">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_argument</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">short_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">long_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds an argument while retaining metavar instead of dest in help</span>
+<span class="sd">        message</span>
+
+<span class="sd">        :param short_arg: The short argument name</span>
+<span class="sd">        :param long_arg: The long argument name</span>
+<span class="sd">        :param \*args: Any additional positional arguments</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">call</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">add_argument</span><span class="p">,</span>
+            <span class="o">*</span><span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="n">short_arg</span><span class="p">,</span> <span class="n">long_arg</span><span class="p">]</span> <span class="k">if</span> <span class="n">arg</span><span class="p">],</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;help&quot;</span><span class="p">,</span> <span class="s2">&quot;store_true&quot;</span><span class="p">):</span>
+            <span class="n">call</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">call</span><span class="p">(</span>
+                <span class="n">metavar</span><span class="o">=</span><span class="n">EnhancedArgumentParser</span><span class="o">.</span><span class="n">sanitize_argument</span><span class="p">(</span>
+                    <span class="n">utils</span><span class="o">.</span><span class="n">coalesce</span><span class="p">(</span><span class="n">long_arg</span><span class="p">,</span> <span class="n">short_arg</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.parse_args">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args">[docs]</a>
+    <span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="n">db_connection_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;db&quot;</span><span class="p">,</span>
+        <span class="n">spark_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;spark&quot;</span><span class="p">,</span>
+        <span class="n">spark_db_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;spark_db&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parses arguments while optionally setting up logging, database, and/or</span>
+<span class="sd">        PySpark.</span>
+
+<span class="sd">        :param \*args: Any additional positional arguments</span>
+<span class="sd">        :param db_connection_name: The ``args`` attribute name to give to a</span>
+<span class="sd">            created database connection</span>
+<span class="sd">        :param spark_name: The ``args`` attribute name to give to a created</span>
+<span class="sd">            PySpark session</span>
+<span class="sd">        :param spark_db_name: The ``args`` attribute name to give to PostgreSQL</span>
+<span class="sd">            login credentials for use with PySpark</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        :return: Parsed arguments, additionally with attribute ``db`` as a</span>
+<span class="sd">            database connection if ``use_database = True``, with attribute</span>
+<span class="sd">            ``spark`` if ``use_spark = True``, and attribute ``spark_db`` if</span>
+<span class="sd">            ``use_spark_db = True``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_logging</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setup_logging</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_database</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">dont_create_db_connection</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">db_connection_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_database</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_spark</span><span class="p">:</span>
+            <span class="n">spark</span><span class="p">,</span> <span class="n">pgpass_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setup_spark</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">spark_name</span><span class="p">,</span> <span class="n">spark</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pgpass_record</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">spark_db_name</span><span class="p">,</span> <span class="n">pgpass_record</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">args</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.add_log_level_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_level_argument">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_log_level_argument</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">short_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;-l&quot;</span><span class="p">,</span>
+        <span class="n">long_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;--log-level&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;logging&quot;</span><span class="p">][</span><span class="s2">&quot;level&quot;</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds an argument to set the logging level, converts it to the proper</span>
+<span class="sd">        integer, and sets ``dest = &quot;log_level&quot;``</span>
+
+<span class="sd">        :param short_arg: Short argument name to use</span>
+<span class="sd">        :param long_arg: Long argument name to use</span>
+<span class="sd">        :param default: Default logging level value</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="n">short_arg</span><span class="o">=</span><span class="n">short_arg</span><span class="p">,</span>
+            <span class="n">long_arg</span><span class="o">=</span><span class="n">long_arg</span><span class="p">,</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">DictToFunc</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">_nameToLevel</span><span class="p">),</span>
+            <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;log_level&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;the logging level to use (choices are: </span><span class="se">{{</span><span class="si">{</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">_nameToLevel</span><span class="p">)</span><span class="si">}</span><span class="se">}}</span><span class="s2">)&quot;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.add_log_format_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_format_argument">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_log_format_argument</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">short_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;-f&quot;</span><span class="p">,</span>
+        <span class="n">long_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;--log-format&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;logging&quot;</span><span class="p">][</span><span class="s2">&quot;format&quot;</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds an argument to set the logging format and sets</span>
+<span class="sd">        ``dest = &quot;log_format&quot;``</span>
+
+<span class="sd">        :param short_arg: Short argument name to use</span>
+<span class="sd">        :param long_arg: Long argument name to use</span>
+<span class="sd">        :param default: Default logging format</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="n">short_arg</span><span class="o">=</span><span class="n">short_arg</span><span class="p">,</span>
+            <span class="n">long_arg</span><span class="o">=</span><span class="n">long_arg</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;log_format&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;the logging format to use&quot;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.add_db_service_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_db_service_argument">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_db_service_argument</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">short_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;-s&quot;</span><span class="p">,</span>
+        <span class="n">long_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;--service&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds an argument to set the database service name sets</span>
+<span class="sd">        ``dest = &quot;db_service&quot;``</span>
+
+<span class="sd">        :param short_arg: Short argument name to use</span>
+<span class="sd">        :param long_arg: Long argument name to use</span>
+<span class="sd">        :param default: Default service</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="n">short_arg</span><span class="o">=</span><span class="n">short_arg</span><span class="p">,</span>
+            <span class="n">long_arg</span><span class="o">=</span><span class="n">long_arg</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;db_service&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;PostgreSQL service name to log in with&quot;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.add_spark_cores_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_cores_argument">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_spark_cores_argument</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">short_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span>
+        <span class="n">long_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;--spark-cores&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;cores&quot;</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds an argument to set the number of PySpark cores to use and sets</span>
+<span class="sd">        ``dest = &quot;spark_cores&quot;``</span>
+
+<span class="sd">        :param short_arg: Short argument name to use</span>
+<span class="sd">        :param long_arg: Long argument name to use</span>
+<span class="sd">        :param default: Default cores</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="n">short_arg</span><span class="o">=</span><span class="n">short_arg</span><span class="p">,</span>
+            <span class="n">long_arg</span><span class="o">=</span><span class="n">long_arg</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;spark_cores&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;the number of cores to provide to Spark&quot;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.add_spark_memory_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_memory_argument">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_spark_memory_argument</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">short_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span>
+        <span class="n">long_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;--spark-memory&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;memory&quot;</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds an argument to set the amount of memory to give to PySpark and</span>
+<span class="sd">        sets ``dest = &quot;spark_memory&quot;``</span>
+
+<span class="sd">        :param short_arg: Short argument name to use</span>
+<span class="sd">        :param long_arg: Long argument name to use</span>
+<span class="sd">        :param default: Default memory to use</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="n">short_arg</span><span class="o">=</span><span class="n">short_arg</span><span class="p">,</span>
+            <span class="n">long_arg</span><span class="o">=</span><span class="n">long_arg</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;spark_memory&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;the amount of memory to provide to Spark&quot;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.add_spark_config_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_config_argument">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_spark_config_argument</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">short_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">long_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;--spark-config&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds an argument to provide 0 or more options to initialize the PySpark</span>
+<span class="sd">        session with and sets ``dest = &quot;spark_config&quot;``</span>
+
+<span class="sd">        :param short_arg: Short argument name to use</span>
+<span class="sd">        :param long_arg: Long argument name to use</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="n">short_arg</span><span class="o">=</span><span class="n">short_arg</span><span class="p">,</span>
+            <span class="n">long_arg</span><span class="o">=</span><span class="n">long_arg</span><span class="p">,</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">key_value_pair</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;spark_config&quot;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s2">&quot;append&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;any additional config options to pass to spark (format is KEY=VALUE)&quot;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.add_spark_load_config_argument">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_load_config_argument">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_spark_load_config_argument</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">short_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">long_arg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;--spark-load-config&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds an argument to provide 0 or more options to load a dataframe</span>
+<span class="sd">        in PySpark with and sets ``dest = &quot;spark_load_config&quot;``</span>
+
+<span class="sd">        :param short_arg: Short argument name to use</span>
+<span class="sd">        :param long_arg: Long argument name to use</span>
+<span class="sd">        :param \**kwargs: Any additional named arguments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="n">short_arg</span><span class="o">=</span><span class="n">short_arg</span><span class="p">,</span>
+            <span class="n">long_arg</span><span class="o">=</span><span class="n">long_arg</span><span class="p">,</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">key_value_pair</span><span class="p">,</span>
+            <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;spark_load_config&quot;</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="s2">&quot;append&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;any options required to load the the data (format is KEY=VALUE)&quot;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.setup_logging">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_logging">[docs]</a>
+    <span class="k">def</span> <span class="nf">setup_logging</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+        <span class="n">stream</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">_io</span><span class="o">.</span><span class="n">TextIOWrapper</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stream_handler_logging_level</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets up logging with</span>
+<span class="sd">        :func:`~actio_python_utils.logging_functions.setup_logging` and</span>
+<span class="sd">        specified log level and format</span>
+
+<span class="sd">        :param args: Parsed arguments from :meth:`parse_args`</span>
+<span class="sd">        :param name: Logger name to initialize</span>
+<span class="sd">        :param stream: Stream to log to</span>
+<span class="sd">        :param stream_handler_logging_level: Logging level to use for stream</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ulf</span><span class="o">.</span><span class="n">setup_logging</span><span class="p">(</span>
+            <span class="n">logging_level</span><span class="o">=</span><span class="p">(</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">log_level</span> <span class="k">if</span> <span class="s2">&quot;log_level&quot;</span> <span class="ow">in</span> <span class="n">args</span> <span class="k">else</span> <span class="n">utils</span><span class="o">.</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;logging&quot;</span><span class="p">][</span><span class="s2">&quot;level&quot;</span><span class="p">]</span>
+            <span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">,</span>
+            <span class="n">stream_handler_logging_level</span><span class="o">=</span><span class="n">stream_handler_logging_level</span><span class="p">,</span>
+            <span class="n">format_string</span><span class="o">=</span><span class="p">(</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">log_format</span>
+                <span class="k">if</span> <span class="s2">&quot;log_format&quot;</span> <span class="ow">in</span> <span class="n">args</span>
+                <span class="k">else</span> <span class="n">utils</span><span class="o">.</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;logging&quot;</span><span class="p">][</span><span class="s2">&quot;format&quot;</span><span class="p">]</span>
+            <span class="p">),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.setup_database">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_database">[docs]</a>
+    <span class="k">def</span> <span class="nf">setup_database</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a psycopg2 connection to the database specified in</span>
+<span class="sd">        `args.db_service`</span>
+
+<span class="sd">        :param args: Parsed arguments from :meth:`parse_args`</span>
+<span class="sd">        :return: The psycopg2 connection</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">udbf</span><span class="o">.</span><span class="n">connect_to_db</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">db_service</span> <span class="k">if</span> <span class="s2">&quot;db_service&quot;</span> <span class="ow">in</span> <span class="n">args</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnhancedArgumentParser.setup_spark">
+<a class="viewcode-back" href="../../_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.html#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_spark">[docs]</a>
+    <span class="k">def</span> <span class="nf">setup_spark</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pyspark</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">SparkSession</span><span class="p">,</span> <span class="n">pgtoolkit</span><span class="o">.</span><span class="n">pgpass</span><span class="o">.</span><span class="n">PassEntry</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list with a created PySpark session and optionally a</span>
+<span class="sd">        PostgreSQL login record if ``use_spark_db = True``</span>
+
+<span class="sd">        :param args: Parsed arguments from :meth:`parse_args`</span>
+<span class="sd">        :return: A list with the created PySpark session and either a</span>
+<span class="sd">            :class:`pgtoolkit.pgpass.PassEntry` record or ``None``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">return_value</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">return_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">usf</span><span class="o">.</span><span class="n">setup_spark</span><span class="p">(</span>
+                <span class="n">cores</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">args</span><span class="o">.</span><span class="n">spark_cores</span>
+                    <span class="k">if</span> <span class="s2">&quot;spark_cores&quot;</span> <span class="ow">in</span> <span class="n">args</span>
+                    <span class="k">else</span> <span class="n">utils</span><span class="o">.</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;cores&quot;</span><span class="p">]</span>
+                <span class="p">),</span>
+                <span class="n">memory</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">args</span><span class="o">.</span><span class="n">spark_memory</span>
+                    <span class="k">if</span> <span class="s2">&quot;spark_memory&quot;</span> <span class="ow">in</span> <span class="n">args</span>
+                    <span class="k">else</span> <span class="n">utils</span><span class="o">.</span><span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;spark&quot;</span><span class="p">][</span><span class="s2">&quot;memory&quot;</span><span class="p">]</span>
+                <span class="p">),</span>
+                <span class="n">use_xml</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_xml</span><span class="p">,</span>
+                <span class="n">use_glow</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_glow</span><span class="p">,</span>
+                <span class="n">use_db</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_spark_db</span><span class="p">,</span>
+                <span class="n">extra_options</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">spark_config</span> <span class="k">if</span> <span class="s2">&quot;spark_config&quot;</span> <span class="ow">in</span> <span class="n">args</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">extra_packages</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spark_extra_packages</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">return_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">udbf</span><span class="o">.</span><span class="n">get_pg_config</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">db_service</span> <span class="k">if</span> <span class="s2">&quot;db_service&quot;</span> <span class="ow">in</span> <span class="n">args</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_spark_db</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">return_value</span></div>
+</div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../history.html">History</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.argparse_functions</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>
