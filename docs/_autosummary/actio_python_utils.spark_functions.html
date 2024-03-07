@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>actio_python_utils.spark_functions &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=601dbdee" />
+    <script src="../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.spark_functions</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="module-actio_python_utils.spark_functions">
+<span id="actio-python-utils-spark-functions"></span><h1>actio_python_utils.spark_functions<a class="headerlink" href="#module-actio_python_utils.spark_functions" title="Link to this heading">¶</a></h1>
+<p>Spark-related functionality.</p>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.convert_chromosome.html#actio_python_utils.spark_functions.convert_chromosome" title="actio_python_utils.spark_functions.convert_chromosome"><code class="xref py py-obj docutils literal notranslate"><span class="pre">convert_chromosome</span></code></a>(self, current_column_name)</p></td>
+<td><p>Return a PySpark dataframe with <code class="docutils literal notranslate"><span class="pre">current_column_name</span></code> (containing human chromosomes) with a new column, <code class="docutils literal notranslate"><span class="pre">new_column_name</span></code> (defaulting to overwriting the original), with the chromosome cast as an integer.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.convert_dicts_to_dataframe.html#actio_python_utils.spark_functions.convert_dicts_to_dataframe" title="actio_python_utils.spark_functions.convert_dicts_to_dataframe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">convert_dicts_to_dataframe</span></code></a>(self[, ...])</p></td>
+<td><p>Converts either a list of dicts (<code class="docutils literal notranslate"><span class="pre">dict_list</span></code>) or a function that returns an iterator of dicts (<code class="docutils literal notranslate"><span class="pre">iter_func</span></code>) to a PySpark dataframe</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.count_columns_with_string.html#actio_python_utils.spark_functions.count_columns_with_string" title="actio_python_utils.spark_functions.count_columns_with_string"><code class="xref py py-obj docutils literal notranslate"><span class="pre">count_columns_with_string</span></code></a>(self[, string])</p></td>
+<td><p>Return a PySpark dataframe with the number of times a given string occurs in each string column in a dataframe</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.count_distinct_values.html#actio_python_utils.spark_functions.count_distinct_values" title="actio_python_utils.spark_functions.count_distinct_values"><code class="xref py py-obj docutils literal notranslate"><span class="pre">count_distinct_values</span></code></a>(self[, ...])</p></td>
+<td><p>Return a new PySpark dataframe with the number of distinct values in each column.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.count_nulls.html#actio_python_utils.spark_functions.count_nulls" title="actio_python_utils.spark_functions.count_nulls"><code class="xref py py-obj docutils literal notranslate"><span class="pre">count_nulls</span></code></a>(self)</p></td>
+<td><p>Return a PySpark dataframe with the number of null values in each column of a dataframe</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.load_dataframe.html#actio_python_utils.spark_functions.load_dataframe" title="actio_python_utils.spark_functions.load_dataframe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_dataframe</span></code></a>(self, path[, format, ...])</p></td>
+<td><p>Load and return the specified data source using PySpark</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.load_db_to_dataframe.html#actio_python_utils.spark_functions.load_db_to_dataframe" title="actio_python_utils.spark_functions.load_db_to_dataframe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_db_to_dataframe</span></code></a>(self[, pgpass_record, ...])</p></td>
+<td><p>Return a PySpark dataframe from either a relation or query</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.load_excel_to_dataframe.html#actio_python_utils.spark_functions.load_excel_to_dataframe" title="actio_python_utils.spark_functions.load_excel_to_dataframe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_excel_to_dataframe</span></code></a>(self, xl_fn[, ...])</p></td>
+<td><p>Load and return the specified Excel spreadsheet with PySpark</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.load_xml_to_dataframe.html#actio_python_utils.spark_functions.load_xml_to_dataframe" title="actio_python_utils.spark_functions.load_xml_to_dataframe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_xml_to_dataframe</span></code></a>(self, xml_fn, row_tag)</p></td>
+<td><p>Load and return the specified XML file with PySpark</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.serialize_array_field.html#actio_python_utils.spark_functions.serialize_array_field" title="actio_python_utils.spark_functions.serialize_array_field"><code class="xref py py-obj docutils literal notranslate"><span class="pre">serialize_array_field</span></code></a>(self, column, ...[, ...])</p></td>
+<td><p>Serializes a <code class="docutils literal notranslate"><span class="pre">pyspark.sql.types.ArrayType</span></code> field for output.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.serialize_bool_field.html#actio_python_utils.spark_functions.serialize_bool_field" title="actio_python_utils.spark_functions.serialize_bool_field"><code class="xref py py-obj docutils literal notranslate"><span class="pre">serialize_bool_field</span></code></a>(self, column, new_column)</p></td>
+<td><p>Serializes a <code class="xref py py-class docutils literal notranslate"><span class="pre">pyspark.sql.types.BooleanType</span></code> field for output.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.serialize_field.html#actio_python_utils.spark_functions.serialize_field" title="actio_python_utils.spark_functions.serialize_field"><code class="xref py py-obj docutils literal notranslate"><span class="pre">serialize_field</span></code></a>(self, column[, new_column, ...])</p></td>
+<td><p>Operates on a PySpark dataframe and converts any field of either atoms or structs, or any array of either of those (but not nested) to the properly formatted string for postgresql TEXT loading format and assigns it the column name new_column.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.serialize_string_field.html#actio_python_utils.spark_functions.serialize_string_field" title="actio_python_utils.spark_functions.serialize_string_field"><code class="xref py py-obj docutils literal notranslate"><span class="pre">serialize_string_field</span></code></a>(self, column, new_column)</p></td>
+<td><p>Serializes a <code class="xref py py-class docutils literal notranslate"><span class="pre">pyspark.sql.types.StringType</span></code> field for output.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.serialize_struct_field.html#actio_python_utils.spark_functions.serialize_struct_field" title="actio_python_utils.spark_functions.serialize_struct_field"><code class="xref py py-obj docutils literal notranslate"><span class="pre">serialize_struct_field</span></code></a>(self, column, ...[, ...])</p></td>
+<td><p>Serializes a <code class="xref py py-class docutils literal notranslate"><span class="pre">pyspark.sql.types.StructType</span></code> field for output.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.setup_spark.html#actio_python_utils.spark_functions.setup_spark" title="actio_python_utils.spark_functions.setup_spark"><code class="xref py py-obj docutils literal notranslate"><span class="pre">setup_spark</span></code></a>([cores, memory, use_db, ...])</p></td>
+<td><p>Configures and creates a PySpark session according to the supplied arguments</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.spark_functions.split_dataframe_to_csv_by_column_value.html#actio_python_utils.spark_functions.split_dataframe_to_csv_by_column_value" title="actio_python_utils.spark_functions.split_dataframe_to_csv_by_column_value"><code class="xref py py-obj docutils literal notranslate"><span class="pre">split_dataframe_to_csv_by_column_value</span></code></a>(self, ...)</p></td>
+<td><p>Split a dataframe with PySpark to a set of gzipped CSVs, e.g. if a dataframe has data: col1,col2,col3 1,1,1 1,2,3 2,1,1.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../history.html">History</a></li>
+</ul>
+
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/_autosummary/actio_python_utils.spark_functions.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.spark_functions</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>

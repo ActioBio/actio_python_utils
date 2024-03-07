@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>actio_python_utils.logging_functions.LazyLogger &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=601dbdee" />
+    <script src="../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.logging_functions.LazyLogger</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="actio-python-utils-logging-functions-lazylogger">
+<h1>actio_python_utils.logging_functions.LazyLogger<a class="headerlink" href="#actio-python-utils-logging-functions-lazylogger" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">actio_python_utils.logging_functions.</span></span><span class="sig-name descname"><span class="pre">LazyLogger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/logging_functions.html#LazyLogger"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Logger</span></code></p>
+<p>Wraps a <code class="xref py py-class docutils literal notranslate"><span class="pre">logging.Logger</span></code> to accept either a message or a function
+to evaluate to produce the desired message.  If a function is provided it
+is evaluated lazily, i.e. only if the logger is enabled for the appropriate
+level.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.__init__" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize the logger with a name and an optional level.</p>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.__init__" title="actio_python_utils.logging_functions.LazyLogger.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(name[, level])</p></td>
+<td><p>Initialize the logger with a name and an optional level.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.addFilter" title="actio_python_utils.logging_functions.LazyLogger.addFilter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">addFilter</span></code></a>(filter)</p></td>
+<td><p>Add the specified filter to this handler.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.addHandler" title="actio_python_utils.logging_functions.LazyLogger.addHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">addHandler</span></code></a>(hdlr)</p></td>
+<td><p>Add the specified handler to this logger.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.callHandlers" title="actio_python_utils.logging_functions.LazyLogger.callHandlers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">callHandlers</span></code></a>(record)</p></td>
+<td><p>Pass a record to all relevant handlers.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.critical" title="actio_python_utils.logging_functions.LazyLogger.critical"><code class="xref py py-obj docutils literal notranslate"><span class="pre">critical</span></code></a>(msg_or_func, *args, **kwargs)</p></td>
+<td><p>Log 'msg % args' with severity 'CRITICAL'.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.debug" title="actio_python_utils.logging_functions.LazyLogger.debug"><code class="xref py py-obj docutils literal notranslate"><span class="pre">debug</span></code></a>(msg_or_func, *args, **kwargs)</p></td>
+<td><p>Log 'msg % args' with severity 'DEBUG'.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.error" title="actio_python_utils.logging_functions.LazyLogger.error"><code class="xref py py-obj docutils literal notranslate"><span class="pre">error</span></code></a>(msg_or_func, *args, **kwargs)</p></td>
+<td><p>Log 'msg % args' with severity 'ERROR'.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.exception" title="actio_python_utils.logging_functions.LazyLogger.exception"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exception</span></code></a>(msg_or_func, *args[, exc_info])</p></td>
+<td><p>Convenience method for logging an ERROR with exception information.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.fatal" title="actio_python_utils.logging_functions.LazyLogger.fatal"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fatal</span></code></a>(msg_or_func, *args, **kwargs)</p></td>
+<td><p>Don't use this method, use critical() instead.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.filter" title="actio_python_utils.logging_functions.LazyLogger.filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">filter</span></code></a>(record)</p></td>
+<td><p>Determine if a record is loggable by consulting all the filters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.findCaller" title="actio_python_utils.logging_functions.LazyLogger.findCaller"><code class="xref py py-obj docutils literal notranslate"><span class="pre">findCaller</span></code></a>([stack_info, stacklevel])</p></td>
+<td><p>Find the stack frame of the caller so that we can note the source file name, line number and function name.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.getChild" title="actio_python_utils.logging_functions.LazyLogger.getChild"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getChild</span></code></a>(suffix)</p></td>
+<td><p>Get a logger which is a descendant to this one.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.getEffectiveLevel" title="actio_python_utils.logging_functions.LazyLogger.getEffectiveLevel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getEffectiveLevel</span></code></a>()</p></td>
+<td><p>Get the effective level for this logger.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.handle" title="actio_python_utils.logging_functions.LazyLogger.handle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">handle</span></code></a>(record)</p></td>
+<td><p>Call the handlers for the specified record.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.hasHandlers" title="actio_python_utils.logging_functions.LazyLogger.hasHandlers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hasHandlers</span></code></a>()</p></td>
+<td><p>See if this logger has any handlers configured.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.info" title="actio_python_utils.logging_functions.LazyLogger.info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">info</span></code></a>(msg_or_func, *args, **kwargs)</p></td>
+<td><p>Log 'msg % args' with severity 'INFO'.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.isEnabledFor" title="actio_python_utils.logging_functions.LazyLogger.isEnabledFor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isEnabledFor</span></code></a>(level)</p></td>
+<td><p>Is this logger enabled for level 'level'?</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.log" title="actio_python_utils.logging_functions.LazyLogger.log"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log</span></code></a>(level, msg, *args, **kwargs)</p></td>
+<td><p>Log 'msg % args' with the integer severity 'level'.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.makeRecord" title="actio_python_utils.logging_functions.LazyLogger.makeRecord"><code class="xref py py-obj docutils literal notranslate"><span class="pre">makeRecord</span></code></a>(name, level, fn, lno, msg, args, ...)</p></td>
+<td><p>A factory method which can be overridden in subclasses to create specialized LogRecords.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.removeFilter" title="actio_python_utils.logging_functions.LazyLogger.removeFilter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">removeFilter</span></code></a>(filter)</p></td>
+<td><p>Remove the specified filter from this handler.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.removeHandler" title="actio_python_utils.logging_functions.LazyLogger.removeHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">removeHandler</span></code></a>(hdlr)</p></td>
+<td><p>Remove the specified handler from this logger.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.setLevel" title="actio_python_utils.logging_functions.LazyLogger.setLevel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">setLevel</span></code></a>(level)</p></td>
+<td><p>Set the logging level of this logger.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">warn</span></code>(msg_or_func, *args, **kwargs)</p></td>
+<td><p><dl class="field-list simple">
+<dt class="field-odd">rtype<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.logging_functions.LazyLogger.warning" title="actio_python_utils.logging_functions.LazyLogger.warning"><code class="xref py py-obj docutils literal notranslate"><span class="pre">warning</span></code></a>(msg_or_func, *args, **kwargs)</p></td>
+<td><p>Log 'msg % args' with severity 'WARNING'.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">manager</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">root</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.addFilter">
+<span class="sig-name descname"><span class="pre">addFilter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.addFilter" title="Link to this definition">¶</a></dt>
+<dd><p>Add the specified filter to this handler.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.addHandler">
+<span class="sig-name descname"><span class="pre">addHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hdlr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.addHandler" title="Link to this definition">¶</a></dt>
+<dd><p>Add the specified handler to this logger.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.callHandlers">
+<span class="sig-name descname"><span class="pre">callHandlers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.callHandlers" title="Link to this definition">¶</a></dt>
+<dd><p>Pass a record to all relevant handlers.</p>
+<p>Loop through all handlers for this logger and its parents in the
+logger hierarchy. If no handler was found, output a one-off error
+message to sys.stderr. Stop searching up the hierarchy whenever a
+logger with the “propagate” attribute set to zero is found - that
+will be the last logger whose handlers are called.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.critical">
+<span class="sig-name descname"><span class="pre">critical</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_or_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/logging_functions.html#LazyLogger.critical"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.critical" title="Link to this definition">¶</a></dt>
+<dd><p>Log ‘msg % args’ with severity ‘CRITICAL’.</p>
+<p>To pass exception information, use the keyword argument exc_info with
+a true value, e.g.</p>
+<p>logger.critical(“Houston, we have a %s”, “major disaster”, exc_info=1)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.debug">
+<span class="sig-name descname"><span class="pre">debug</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_or_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/logging_functions.html#LazyLogger.debug"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.debug" title="Link to this definition">¶</a></dt>
+<dd><p>Log ‘msg % args’ with severity ‘DEBUG’.</p>
+<p>To pass exception information, use the keyword argument exc_info with
+a true value, e.g.</p>
+<p>logger.debug(“Houston, we have a %s”, “thorny problem”, exc_info=1)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.error">
+<span class="sig-name descname"><span class="pre">error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_or_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/logging_functions.html#LazyLogger.error"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.error" title="Link to this definition">¶</a></dt>
+<dd><p>Log ‘msg % args’ with severity ‘ERROR’.</p>
+<p>To pass exception information, use the keyword argument exc_info with
+a true value, e.g.</p>
+<p>logger.error(“Houston, we have a %s”, “major problem”, exc_info=1)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.exception">
+<span class="sig-name descname"><span class="pre">exception</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_or_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exc_info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/logging_functions.html#LazyLogger.exception"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.exception" title="Link to this definition">¶</a></dt>
+<dd><p>Convenience method for logging an ERROR with exception information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.fatal">
+<span class="sig-name descname"><span class="pre">fatal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_or_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/logging_functions.html#LazyLogger.fatal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.fatal" title="Link to this definition">¶</a></dt>
+<dd><p>Don’t use this method, use critical() instead.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.filter">
+<span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.filter" title="Link to this definition">¶</a></dt>
+<dd><p>Determine if a record is loggable by consulting all the filters.</p>
+<p>The default is to allow the record to be logged; any filter can veto
+this and the record is then dropped. Returns a zero value if a record
+is to be dropped, else non-zero.</p>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 3.2: </span>Allow filters to be just callables.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.findCaller">
+<span class="sig-name descname"><span class="pre">findCaller</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stack_info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stacklevel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.findCaller" title="Link to this definition">¶</a></dt>
+<dd><p>Find the stack frame of the caller so that we can note the source
+file name, line number and function name.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.getChild">
+<span class="sig-name descname"><span class="pre">getChild</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">suffix</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.getChild" title="Link to this definition">¶</a></dt>
+<dd><p>Get a logger which is a descendant to this one.</p>
+<p>This is a convenience method, such that</p>
+<p>logging.getLogger(‘abc’).getChild(‘def.ghi’)</p>
+<p>is the same as</p>
+<p>logging.getLogger(‘abc.def.ghi’)</p>
+<p>It’s useful, for example, when the parent logger is named using
+__name__ rather than a literal string.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.getEffectiveLevel">
+<span class="sig-name descname"><span class="pre">getEffectiveLevel</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.getEffectiveLevel" title="Link to this definition">¶</a></dt>
+<dd><p>Get the effective level for this logger.</p>
+<p>Loop through this logger and its parents in the logger hierarchy,
+looking for a non-zero logging level. Return the first one found.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.handle">
+<span class="sig-name descname"><span class="pre">handle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">record</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.handle" title="Link to this definition">¶</a></dt>
+<dd><p>Call the handlers for the specified record.</p>
+<p>This method is used for unpickled records received from a socket, as
+well as those created locally. Logger-level filtering is applied.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.hasHandlers">
+<span class="sig-name descname"><span class="pre">hasHandlers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.hasHandlers" title="Link to this definition">¶</a></dt>
+<dd><p>See if this logger has any handlers configured.</p>
+<p>Loop through all handlers for this logger and its parents in the
+logger hierarchy. Return True if a handler was found, else False.
+Stop searching up the hierarchy whenever a logger with the “propagate”
+attribute set to zero is found - that will be the last logger which
+is checked for the existence of handlers.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.info">
+<span class="sig-name descname"><span class="pre">info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_or_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/logging_functions.html#LazyLogger.info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.info" title="Link to this definition">¶</a></dt>
+<dd><p>Log ‘msg % args’ with severity ‘INFO’.</p>
+<p>To pass exception information, use the keyword argument exc_info with
+a true value, e.g.</p>
+<p>logger.info(“Houston, we have a %s”, “interesting problem”, exc_info=1)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.isEnabledFor">
+<span class="sig-name descname"><span class="pre">isEnabledFor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.isEnabledFor" title="Link to this definition">¶</a></dt>
+<dd><p>Is this logger enabled for level ‘level’?</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">msg</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.log" title="Link to this definition">¶</a></dt>
+<dd><p>Log ‘msg % args’ with the integer severity ‘level’.</p>
+<p>To pass exception information, use the keyword argument exc_info with
+a true value, e.g.</p>
+<p>logger.log(level, “We have a %s”, “mysterious problem”, exc_info=1)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.makeRecord">
+<span class="sig-name descname"><span class="pre">makeRecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lno</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">msg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exc_info</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sinfo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.makeRecord" title="Link to this definition">¶</a></dt>
+<dd><p>A factory method which can be overridden in subclasses to create
+specialized LogRecords.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.removeFilter">
+<span class="sig-name descname"><span class="pre">removeFilter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.removeFilter" title="Link to this definition">¶</a></dt>
+<dd><p>Remove the specified filter from this handler.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.removeHandler">
+<span class="sig-name descname"><span class="pre">removeHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hdlr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.removeHandler" title="Link to this definition">¶</a></dt>
+<dd><p>Remove the specified handler from this logger.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.setLevel">
+<span class="sig-name descname"><span class="pre">setLevel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">level</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.setLevel" title="Link to this definition">¶</a></dt>
+<dd><p>Set the logging level of this logger.  level must be an int or a str.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.logging_functions.LazyLogger.warning">
+<span class="sig-name descname"><span class="pre">warning</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg_or_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/logging_functions.html#LazyLogger.warning"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.logging_functions.LazyLogger.warning" title="Link to this definition">¶</a></dt>
+<dd><p>Log ‘msg % args’ with severity ‘WARNING’.</p>
+<p>To pass exception information, use the keyword argument exc_info with
+a true value, e.g.</p>
+<p>logger.warning(“Houston, we have a %s”, “bit of a problem”, exc_info=1)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../history.html">History</a></li>
+</ul>
+
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/_autosummary/actio_python_utils.logging_functions.LazyLogger.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.logging_functions.LazyLogger</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>

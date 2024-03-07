@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>actio_python_utils.utils &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=601dbdee" />
+    <script src="../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.utils</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="module-actio_python_utils.utils">
+<span id="actio-python-utils-utils"></span><h1>actio_python_utils.utils<a class="headerlink" href="#module-actio_python_utils.utils" title="Link to this heading">¶</a></h1>
+<p class="rubric">Functions</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.cast_chromosome_to_int.html#actio_python_utils.utils.cast_chromosome_to_int" title="actio_python_utils.utils.cast_chromosome_to_int"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cast_chromosome_to_int</span></code></a>(chromosome)</p></td>
+<td><p>Cast a chromosome string, optionally prefixed with chr, to an integer.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.check_valid_output_directory.html#actio_python_utils.utils.check_valid_output_directory" title="actio_python_utils.utils.check_valid_output_directory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">check_valid_output_directory</span></code></a>(output_directory)</p></td>
+<td><p>Check if the given directory is valid for outputting.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.coalesce.html#actio_python_utils.utils.coalesce" title="actio_python_utils.utils.coalesce"><code class="xref py py-obj docutils literal notranslate"><span class="pre">coalesce</span></code></a>(*args)</p></td>
+<td><p>Return the first argument that is not <code class="docutils literal notranslate"><span class="pre">None</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.debug.html#actio_python_utils.utils.debug" title="actio_python_utils.utils.debug"><code class="xref py py-obj docutils literal notranslate"><span class="pre">debug</span></code></a>(func)</p></td>
+<td><p>Wraps a function to output the function signature, run the function, output the return value, and return the return value.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.extract_excel_sheet.html#actio_python_utils.utils.extract_excel_sheet" title="actio_python_utils.utils.extract_excel_sheet"><code class="xref py py-obj docutils literal notranslate"><span class="pre">extract_excel_sheet</span></code></a>(fn, output_fn[, sheet, ...])</p></td>
+<td><p>Extract a sheet from an Excel spreadsheet.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.flatten_cfg.html#actio_python_utils.utils.flatten_cfg" title="actio_python_utils.utils.flatten_cfg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flatten_cfg</span></code></a>(key[, d, sep])</p></td>
+<td><p>Flatten a nested value in a dict</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.get_csv_fields.html#actio_python_utils.utils.get_csv_fields" title="actio_python_utils.utils.get_csv_fields"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_csv_fields</span></code></a>(fn[, sep, sanitize, ...])</p></td>
+<td><p>Get the column names from the first line of the specified file and optionally replaces an arbitrary sequence of strings to others</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.open_bz2.html#actio_python_utils.utils.open_bz2" title="actio_python_utils.utils.open_bz2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_bz2</span></code></a>(filename[, mode, buff, external])</p></td>
+<td><p>Return a file handle to filename using <code class="docutils literal notranslate"><span class="pre">pbzip2</span></code>, <code class="docutils literal notranslate"><span class="pre">bzip2</span></code>, or <code class="docutils literal notranslate"><span class="pre">b2</span></code> module</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.open_gz.html#actio_python_utils.utils.open_gz" title="actio_python_utils.utils.open_gz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_gz</span></code></a>(filename[, mode, buff, external])</p></td>
+<td><p>Return a file handle to filename using <code class="docutils literal notranslate"><span class="pre">pigz</span></code>, <code class="docutils literal notranslate"><span class="pre">gzip</span></code>, or <code class="docutils literal notranslate"><span class="pre">gzip</span></code> module</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.open_pipe.html#actio_python_utils.utils.open_pipe" title="actio_python_utils.utils.open_pipe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_pipe</span></code></a>(command[, mode, buff])</p></td>
+<td><p>Runs a <code class="xref py py-class docutils literal notranslate"><span class="pre">subprocess.Popen</span></code> and either retains input or output</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.open_xz.html#actio_python_utils.utils.open_xz" title="actio_python_utils.utils.open_xz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_xz</span></code></a>(filename[, mode, buff, external])</p></td>
+<td><p>Return a file handle to filename using either <code class="docutils literal notranslate"><span class="pre">xz</span></code> or <code class="docutils literal notranslate"><span class="pre">lzma</span></code> module</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.rename_dict_keys.html#actio_python_utils.utils.rename_dict_keys" title="actio_python_utils.utils.rename_dict_keys"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rename_dict_keys</span></code></a>(original_dict, renames)</p></td>
+<td><p>Returns a new dict that's a copy of the supplied dict but with an arbitrary number of keys renamed</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.sync_to_s3.html#actio_python_utils.utils.sync_to_s3" title="actio_python_utils.utils.sync_to_s3"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sync_to_s3</span></code></a>(dir_name, s3_path)</p></td>
+<td><p>Syncs a directory to specific S3 bucket/path.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.timer.html#actio_python_utils.utils.timer" title="actio_python_utils.utils.timer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">timer</span></code></a>(func)</p></td>
+<td><p>Wraps a function to output the running time of function calls.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.which.html#actio_python_utils.utils.which" title="actio_python_utils.utils.which"><code class="xref py py-obj docutils literal notranslate"><span class="pre">which</span></code></a>(program)</p></td>
+<td><p><dl class="field-list simple">
+<dt class="field-odd">type program<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+</dl>
+</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.zopen.html#actio_python_utils.utils.zopen" title="actio_python_utils.utils.zopen"><code class="xref py py-obj docutils literal notranslate"><span class="pre">zopen</span></code></a>(filename[, mode, buff, external])</p></td>
+<td><p>Open pipe, zipped, or unzipped file automagically</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Classes</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.CustomCSVDialect.html#actio_python_utils.utils.CustomCSVDialect" title="actio_python_utils.utils.CustomCSVDialect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CustomCSVDialect</span></code></a>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="actio_python_utils.utils.DictToFunc.html#actio_python_utils.utils.DictToFunc" title="actio_python_utils.utils.DictToFunc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DictToFunc</span></code></a>(choices)</p></td>
+<td><p>Class that after initializing with a dict can be called to map keys to values, e.g..</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="actio_python_utils.utils.NumericValue.html#actio_python_utils.utils.NumericValue" title="actio_python_utils.utils.NumericValue"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NumericValue</span></code></a>([min_value, max_value, ...])</p></td>
+<td><p>Creates a class that can be used as a function to verify that a passed argument is a numeric value of the correct type and in the expected range</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../history.html">History</a></li>
+</ul>
+
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/_autosummary/actio_python_utils.utils.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.utils</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>

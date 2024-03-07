@@ -1,0 +1,13 @@
+# Sphinx build output
+_build/
+
+# Auto-generated summaries
+_autosummary/
+
+# Generated documentation outputs
+html/
+*.pdf
+
+# Exclude specific files that are generated or not needed
+.buildinfo
+

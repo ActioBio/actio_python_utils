@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>actio_python_utils.argparse_functions.EnhancedArgumentParser &#8212; Actio Python Utils 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=601dbdee" />
+    <script src="../_static/documentation_options.js?v=01f34227"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.argparse_functions.EnhancedArgumentParser</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="actio-python-utils-argparse-functions-enhancedargumentparser">
+<h1>actio_python_utils.argparse_functions.EnhancedArgumentParser<a class="headerlink" href="#actio-python-utils-argparse-functions-enhancedargumentparser" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">actio_python_utils.argparse_functions.</span></span><span class="sig-name descname"><span class="pre">EnhancedArgumentParser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">*args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description='The</span> <span class="pre">Sphinx</span> <span class="pre">documentation</span> <span class="pre">toolchain.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">formatter_class=&lt;class</span> <span class="pre">'actio_python_utils.argparse_functions.CustomFormatter'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_logging=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_database=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_spark=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_xml=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_glow=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_spark_db=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dont_create_db_connection=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spark_extra_packages=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ArgumentParser</span></code></p>
+<p>Customized <code class="xref py py-class docutils literal notranslate"><span class="pre">argparse.ArgumentParser</span></code> that sets description
+automatically, uses both
+<code class="xref py py-class docutils literal notranslate"><span class="pre">argparse.ArgumentDefaultsHelpFormatter</span></code> and
+<code class="xref py py-class docutils literal notranslate"><span class="pre">argparse.RawTextHelpFormatter</span></code> formatters,
+optionally sets up logging, database, and PySpark connections.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>*args</strong> – Optional positional arguments passed to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">argparse.ArgumentParser()</span></code> constructor</p></li>
+<li><p><strong>description</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'The</span> <span class="pre">Sphinx</span> <span class="pre">documentation</span> <span class="pre">toolchain.'</span></code>) – Passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">argparse.ArgumentParser()</span></code> constructor</p></li>
+<li><p><strong>formatter_class</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">HelpFormatter</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">&lt;class</span> <span class="pre">'actio_python_utils.argparse_functions.CustomFormatter'&gt;</span></code>) – The help formatter to use</p></li>
+<li><p><strong>use_logging</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Adds log level and log format arguments, then sets up
+parsing when <a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args"><code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code></a> is called</p></li>
+<li><p><strong>use_database</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Adds a database service argument, then creates a
+connection to the specified database with the attribute name db when
+<a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args"><code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code></a> is called</p></li>
+<li><p><strong>use_spark</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Adds spark cores, spark memory, and spark config
+arguments, then creates a PySpark session with the attribute name spark
+when <a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args"><code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code></a> is called</p></li>
+<li><p><strong>use_xml</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Adds dependencies to PySpark to parse XML files; sets
+<code class="docutils literal notranslate"><span class="pre">use_spark</span> <span class="pre">=</span> <span class="pre">True</span></code></p></li>
+<li><p><strong>use_glow</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Adds dependencies to PySpark to use glow, e.g. to parse
+VCF files; sets <code class="docutils literal notranslate"><span class="pre">use_spark</span> <span class="pre">=</span> <span class="pre">True</span></code></p></li>
+<li><p><strong>use_spark_db</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Adds dependencies to PySpark to connect to a
+database; sets <code class="docutils literal notranslate"><span class="pre">use_spark</span> <span class="pre">=</span> <span class="pre">True</span></code> and creates an object to create a
+database connection with PySpark with the attribute name <a href="#id1"><span class="problematic" id="id2">``</span></a>spark_db`
+when <a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args"><code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code></a> is called</p></li>
+<li><p><strong>dont_create_db_connection</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) – Don’t create a database connection
+even if <code class="docutils literal notranslate"><span class="pre">use_database</span> <span class="pre">=</span> <span class="pre">True</span></code></p></li>
+<li><p><strong>spark_extra_packages</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]]]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – Adds additional Spark package dependencies to
+initialize; sets <code class="docutils literal notranslate"><span class="pre">use_spark</span> <span class="pre">=</span> <span class="pre">True</span></code></p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">*args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description='The</span> <span class="pre">Sphinx</span> <span class="pre">documentation</span> <span class="pre">toolchain.'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">formatter_class=&lt;class</span> <span class="pre">'actio_python_utils.argparse_functions.CustomFormatter'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_logging=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_database=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_spark=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_xml=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_glow=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_spark_db=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dont_create_db_connection=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spark_extra_packages=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.__init__" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(*args[, description, ...])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_argument</span></code></a>([short_arg, long_arg])</p></td>
+<td><p>Adds an argument while retaining metavar instead of dest in help message</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_argument_group</span></code>(*args, **kwargs)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_db_service_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_db_service_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_db_service_argument</span></code></a>([short_arg, ...])</p></td>
+<td><p>Adds an argument to set the database service name sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;db_service&quot;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_format_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_format_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_log_format_argument</span></code></a>([short_arg, ...])</p></td>
+<td><p>Adds an argument to set the logging format and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;log_format&quot;</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_level_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_level_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_log_level_argument</span></code></a>([short_arg, ...])</p></td>
+<td><p>Adds an argument to set the logging level, converts it to the proper integer, and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;log_level&quot;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mutually_exclusive_group</span></code>(**kwargs)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_config_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_config_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_spark_config_argument</span></code></a>([short_arg, long_arg])</p></td>
+<td><p>Adds an argument to provide 0 or more options to initialize the PySpark session with and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;spark_config&quot;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_cores_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_cores_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_spark_cores_argument</span></code></a>([short_arg, ...])</p></td>
+<td><p>Adds an argument to set the number of PySpark cores to use and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;spark_cores&quot;</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_load_config_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_load_config_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_spark_load_config_argument</span></code></a>([short_arg, ...])</p></td>
+<td><p>Adds an argument to provide 0 or more options to load a dataframe in PySpark with and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;spark_load_config&quot;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_memory_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_memory_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_spark_memory_argument</span></code></a>([short_arg, ...])</p></td>
+<td><p>Adds an argument to set the amount of memory to give to PySpark and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;spark_memory&quot;</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_subparsers</span></code>(**kwargs)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">convert_arg_line_to_args</span></code>(arg_line)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.error" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.error"><code class="xref py py-obj docutils literal notranslate"><span class="pre">error</span></code></a>(message)</p></td>
+<td><p>Prints a usage message incorporating the message to stderr and exits.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">exit</span></code>([status, message])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">format_help</span></code>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">format_usage</span></code>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_default</span></code>(dest)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_args</span></code></a>(*args[, db_connection_name, ...])</p></td>
+<td><p>Parses arguments while optionally setting up logging, database, and/or PySpark.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_intermixed_args</span></code>([args, namespace])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_known_args</span></code>([args, namespace])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_known_intermixed_args</span></code>([args, namespace])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_help</span></code>([file])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_usage</span></code>([file])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">register</span></code>(registry_name, value, object)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.sanitize_argument" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.sanitize_argument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sanitize_argument</span></code></a>(long_arg)</p></td>
+<td><p>Converts the argument name to the variable actually used</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_defaults</span></code>(**kwargs)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_database" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_database"><code class="xref py py-obj docutils literal notranslate"><span class="pre">setup_database</span></code></a>(args)</p></td>
+<td><p>Returns a psycopg2 connection to the database specified in <cite>args.db_service</cite></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_logging" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_logging"><code class="xref py py-obj docutils literal notranslate"><span class="pre">setup_logging</span></code></a>(args[, name, stream, ...])</p></td>
+<td><p>Sets up logging with <a class="reference internal" href="actio_python_utils.logging_functions.setup_logging.html#actio_python_utils.logging_functions.setup_logging" title="actio_python_utils.logging_functions.setup_logging"><code class="xref py py-func docutils literal notranslate"><span class="pre">setup_logging()</span></code></a> and specified log level and format</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_spark" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_spark"><code class="xref py py-obj docutils literal notranslate"><span class="pre">setup_spark</span></code></a>(args)</p></td>
+<td><p>Returns a list with a created PySpark session and optionally a PostgreSQL login record if <code class="docutils literal notranslate"><span class="pre">use_spark_db</span> <span class="pre">=</span> <span class="pre">True</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_argument">
+<span class="sig-name descname"><span class="pre">add_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.add_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an argument while retaining metavar instead of dest in help
+message</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – The short argument name</p></li>
+<li><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – The long argument name</p></li>
+<li><p><strong>*args</strong> – Any additional positional arguments</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_db_service_argument">
+<span class="sig-name descname"><span class="pre">add_db_service_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'-s'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'--service'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.add_db_service_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_db_service_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an argument to set the database service name sets
+<code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;db_service&quot;</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'-s'</span></code>) – Short argument name to use</p></li>
+<li><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'--service'</span></code>) – Long argument name to use</p></li>
+<li><p><strong>default</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – Default service</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_format_argument">
+<span class="sig-name descname"><span class="pre">add_log_format_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'-f'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'--log-format'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%(asctime)s</span> <span class="pre">-</span> <span class="pre">%(name)s</span> <span class="pre">-</span> <span class="pre">%(levelname)s</span> <span class="pre">-</span> <span class="pre">%(message)s'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.add_log_format_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_format_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an argument to set the logging format and sets
+<code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;log_format&quot;</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'-f'</span></code>) – Short argument name to use</p></li>
+<li><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'--log-format'</span></code>) – Long argument name to use</p></li>
+<li><p><strong>default</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'%(asctime)s</span> <span class="pre">-</span> <span class="pre">%(name)s</span> <span class="pre">-</span> <span class="pre">%(levelname)s</span> <span class="pre">-</span> <span class="pre">%(message)s'</span></code>) – Default logging format</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_level_argument">
+<span class="sig-name descname"><span class="pre">add_log_level_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'-l'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'--log-level'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'INFO'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.add_log_level_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_log_level_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an argument to set the logging level, converts it to the proper
+integer, and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;log_level&quot;</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'-l'</span></code>) – Short argument name to use</p></li>
+<li><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'--log-level'</span></code>) – Long argument name to use</p></li>
+<li><p><strong>default</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'INFO'</span></code>) – Default logging level value</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_config_argument">
+<span class="sig-name descname"><span class="pre">add_spark_config_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'--spark-config'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.add_spark_config_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_config_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an argument to provide 0 or more options to initialize the PySpark
+session with and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;spark_config&quot;</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – Short argument name to use</p></li>
+<li><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'--spark-config'</span></code>) – Long argument name to use</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_cores_argument">
+<span class="sig-name descname"><span class="pre">add_spark_cores_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'-c'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'--spark-cores'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'*'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.add_spark_cores_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_cores_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an argument to set the number of PySpark cores to use and sets
+<code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;spark_cores&quot;</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'-c'</span></code>) – Short argument name to use</p></li>
+<li><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'--spark-cores'</span></code>) – Long argument name to use</p></li>
+<li><p><strong>default</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> | <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'*'</span></code>) – Default cores</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_load_config_argument">
+<span class="sig-name descname"><span class="pre">add_spark_load_config_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'--spark-load-config'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.add_spark_load_config_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_load_config_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an argument to provide 0 or more options to load a dataframe
+in PySpark with and sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;spark_load_config&quot;</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – Short argument name to use</p></li>
+<li><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'--spark-load-config'</span></code>) – Long argument name to use</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_memory_argument">
+<span class="sig-name descname"><span class="pre">add_spark_memory_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'-m'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'--spark-memory'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'1g'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.add_spark_memory_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.add_spark_memory_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Adds an argument to set the amount of memory to give to PySpark and
+sets <code class="docutils literal notranslate"><span class="pre">dest</span> <span class="pre">=</span> <span class="pre">&quot;spark_memory&quot;</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'-m'</span></code>) – Short argument name to use</p></li>
+<li><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">'--spark-memory'</span></code>) – Long argument name to use</p></li>
+<li><p><strong>default</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'1g'</span></code>) – Default memory to use</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.error">
+<span class="sig-name descname"><span class="pre">error</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.error" title="Link to this definition">¶</a></dt>
+<dd><p>Prints a usage message incorporating the message to stderr and
+exits.</p>
+<p>If you override this in a subclass, it should not return – it
+should either exit or raise an exception.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args">
+<span class="sig-name descname"><span class="pre">parse_args</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">db_connection_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'db'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spark_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'spark'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spark_db_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'spark_db'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.parse_args"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="Link to this definition">¶</a></dt>
+<dd><p>Parses arguments while optionally setting up logging, database, and/or
+PySpark.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>*args</strong> – Any additional positional arguments</p></li>
+<li><p><strong>db_connection_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'db'</span></code>) – The <code class="docutils literal notranslate"><span class="pre">args</span></code> attribute name to give to a
+created database connection</p></li>
+<li><p><strong>spark_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'spark'</span></code>) – The <code class="docutils literal notranslate"><span class="pre">args</span></code> attribute name to give to a created
+PySpark session</p></li>
+<li><p><strong>spark_db_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'spark_db'</span></code>) – The <code class="docutils literal notranslate"><span class="pre">args</span></code> attribute name to give to PostgreSQL
+login credentials for use with PySpark</p></li>
+<li><p><strong>**kwargs</strong> – Any additional named arguments</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Namespace</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Parsed arguments, additionally with attribute <code class="docutils literal notranslate"><span class="pre">db</span></code> as a
+database connection if <code class="docutils literal notranslate"><span class="pre">use_database</span> <span class="pre">=</span> <span class="pre">True</span></code>, with attribute
+<code class="docutils literal notranslate"><span class="pre">spark</span></code> if <code class="docutils literal notranslate"><span class="pre">use_spark</span> <span class="pre">=</span> <span class="pre">True</span></code>, and attribute <code class="docutils literal notranslate"><span class="pre">spark_db</span></code> if
+<code class="docutils literal notranslate"><span class="pre">use_spark_db</span> <span class="pre">=</span> <span class="pre">True</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.sanitize_argument">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">sanitize_argument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">long_arg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.sanitize_argument"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.sanitize_argument" title="Link to this definition">¶</a></dt>
+<dd><p>Converts the argument name to the variable actually used</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>long_arg</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The argument name</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The reformatted argument</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_database">
+<span class="sig-name descname"><span class="pre">setup_database</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.setup_database"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_database" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a psycopg2 connection to the database specified in
+<cite>args.db_service</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Namespace</span></code></span>) – Parsed arguments from <a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args"><code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code></a></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">connection</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The psycopg2 connection</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_logging">
+<span class="sig-name descname"><span class="pre">setup_logging</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'root'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stream</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stream_handler_logging_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.setup_logging"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_logging" title="Link to this definition">¶</a></dt>
+<dd><p>Sets up logging with
+<a class="reference internal" href="actio_python_utils.logging_functions.setup_logging.html#actio_python_utils.logging_functions.setup_logging" title="actio_python_utils.logging_functions.setup_logging"><code class="xref py py-func docutils literal notranslate"><span class="pre">setup_logging()</span></code></a> and
+specified log level and format</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>args</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Namespace</span></code></span>) – Parsed arguments from <a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args"><code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code></a></p></li>
+<li><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>, default: <code class="docutils literal notranslate"><span class="pre">'root'</span></code>) – Logger name to initialize</p></li>
+<li><p><strong>stream</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">TextIOWrapper</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – Stream to log to</p></li>
+<li><p><strong>stream_handler_logging_level</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]</span>, default: <code class="docutils literal notranslate"><span class="pre">None</span></code>) – Logging level to use for stream</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_spark">
+<span class="sig-name descname"><span class="pre">setup_spark</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/actio_python_utils/argparse_functions.html#EnhancedArgumentParser.setup_spark"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.setup_spark" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a list with a created PySpark session and optionally a
+PostgreSQL login record if <code class="docutils literal notranslate"><span class="pre">use_spark_db</span> <span class="pre">=</span> <span class="pre">True</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Namespace</span></code></span>) – Parsed arguments from <a class="reference internal" href="#actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args" title="actio_python_utils.argparse_functions.EnhancedArgumentParser.parse_args"><code class="xref py py-meth docutils literal notranslate"><span class="pre">parse_args()</span></code></a></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">SparkSession</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">PassEntry</span></code>]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A list with the created PySpark session and either a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">pgtoolkit.pgpass.PassEntry</span></code> record or <code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Actio Python Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Credits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../history.html">History</a></li>
+</ul>
+
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/_autosummary/actio_python_utils.argparse_functions.EnhancedArgumentParser.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Actio Python Utils 0.1.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">actio_python_utils.argparse_functions.EnhancedArgumentParser</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2023, Brett Copeland.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.2.6.
+    </div>
+  </body>
+</html>
