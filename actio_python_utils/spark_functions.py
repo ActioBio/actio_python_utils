@@ -128,6 +128,7 @@ def load_xml_to_dataframe(
     xml_fn: str,
     row_tag: str,
     schema: Optional[str] = None,
+    value_tag: Optional[str] = None,
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
 ) -> DataFrame:
@@ -137,16 +138,21 @@ def load_xml_to_dataframe(
     :param self: The PySpark session to use
     :param xml_fn: The path to the data source to load
     :param row_tag: The XML tag that delimits records
-    :param schema: The path to an optional XSD schema to validate records
+    :param schema: The path to an XSD schema to validate records
+    :param value_tag: Passed as valueTag, suggested to use ``"_tag_value"``;
+        can help with schema parsing and name conflict issues
     :param load_config_options: Any additonal config options to load data
     :param \**kwargs: Any additional named arguments
     :return: The dataframe requested
     """
     if load_config_options is None:
         load_config_options = []
+    load_config_options = list(load_config_options)
     load_config_options.append(("rowTag", row_tag))
     if schema:
         load_config_options.append(("rowValidationPath", schema))
+    if value_tag:
+        load_config_options.append(("valueTag", value_tag))
     return self.load_dataframe(
         xml_fn,
         format="xml",
@@ -156,6 +162,49 @@ def load_xml_to_dataframe(
 
 
 SparkSession.load_xml_to_dataframe = load_xml_to_dataframe
+
+
+def convert_xml_to_parquet(
+    self: SparkSession,
+    xml_fn: str,
+    output_directory: str,
+    row_tag: str,
+    schema: Optional[str] = None,
+    value_tag: Optional[str] = None,
+    load_config_options: Optional[Iterable[tuple[str, str]]] = None,
+    return_dataframe: bool = False,
+    **kwargs,
+) -> Optional[DataFrame]:
+    r"""
+    Convert the specified XML to parquet with pySpark.
+    N.B. it can be substantially more efficient to query parquet data than XML.
+
+    :param self: The PySpark session to use
+    :param xml_fn: The path to the data source to load
+    :param output_directory: The path to write parquet to
+    :param row_tag: The XML tag that delimits records
+    :param schema: The path to an XSD schema to validate records
+    :param value_tag: Passed as valueTag, suggested to use ``"_tag_value"``;
+        can help with schema parsing and name conflict issues
+    :param load_config_options: Any additional config options to load data
+    :param return_dataframe: Whether to load and return the new parquet data
+    :param \**kwargs: Any additional named arguments
+    :return: The dataframe requested if ``return_dataframe == True``
+    """
+    xml_df = self.load_xml_to_dataframe(
+        xml_fn=xml_fn,
+        row_tag=row_tag,
+        schema=schema,
+        value_tag=value_tag,
+        load_config_options=load_config_options,
+        **kwargs,
+    )
+    xml_df.write.mode("overwrite").parquet(output_directory)
+    if return_dataframe:
+        return self.load_dataframe(output_directory)
+
+
+SparkSession.convert_xml_to_parquet = convert_xml_to_parquet
 
 
 def load_db_to_dataframe(
