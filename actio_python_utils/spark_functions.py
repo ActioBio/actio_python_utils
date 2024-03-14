@@ -176,7 +176,7 @@ def convert_xml_to_parquet(
     **kwargs,
 ) -> Optional[DataFrame]:
     r"""
-    Convert the specified XML to parquet with pySpark.
+    Convert the specified XML to parquet with PySpark.
     N.B. it can be substantially more efficient to query parquet data than XML.
 
     :param self: The PySpark session to use

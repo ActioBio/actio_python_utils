@@ -450,6 +450,7 @@ class LoggingCursor(DictCursor):
         escape: str = "'\"'",
         allow_columns_subset: bool = False,
         fields: Optional[Iterable[str]] = None,
+        recreate_indexes: bool = False,
     ) -> None:
         """
         Load a PostgreSQL CSV or TEXT format file to the database
@@ -468,6 +469,8 @@ class LoggingCursor(DictCursor):
             only a subset of the columns
         :param fields: A list of fields for the file; this value is required if
             there is no header
+        :param recreate_indexes: Drop indexes before loading and then add them
+            back at the end
         :raises ValueError: If header and fields specified or if neither is
             specified
         """
@@ -481,6 +484,10 @@ class LoggingCursor(DictCursor):
                 sanitize=sanitize,
                 allow_columns_subset=allow_columns_subset,
             )
+        if recreate_indexes:
+            constraints = self.get_table_constraint_statements([table_name])
+            self.drop_table_constraints([table_name])
+            self.drop_table_keys([table_name])
         fields_string = '"{}"'.format('","'.join(fields))
         statement = f"COPY {table_name} ({fields_string}) FROM STDIN"
         if csv_format:
@@ -491,6 +498,9 @@ class LoggingCursor(DictCursor):
             if header:
                 next(table_fh)
             self.copy_expert(statement, table_fh)
+        if recreate_indexes:
+            for constraint_statement in constraints:
+                self.execute(constraint_statement)
 
 
 class SavepointCursor(LoggingCursor):
