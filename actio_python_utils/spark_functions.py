@@ -281,6 +281,38 @@ def load_excel_to_dataframe(
 SparkSession.load_excel_to_dataframe = load_excel_to_dataframe
 
 
+def load_dataframe_with_preprocessing(
+    self: SparkSession,
+    path: str,
+    func: Callable[[str], bool],
+    process_line_func: Optional[Callable[[str], list[str]]] = None,
+    sep: str = ",",
+) -> DataFrame:
+    """
+    Load the specified dataset and remove rows by calling the
+    provided ``func`` which takes a line as input and returns whether
+    it should be removed
+
+    :param self: The PySpark session to use
+    :param path: The path to the data source to load
+    :param func: A callable object that takes a line of input as an argument
+        and returns whether the line should be removed
+    :param process_line_func: A callable object that takes a line of input and
+        parses it to a list of fields. Defaults to splitting on ``sep`` if not
+        provided.
+    :param sep: The column separator to use
+    :return: The dataframe requested
+    """
+    if not process_line_func:
+        process_line_func = lambda x: x.split(sep)
+    rdd = self.sparkContext.textFile(path).filter(func).map(process_line_func)
+    cols = rdd.first()
+    return rdd.filter(lambda x: x != cols).toDF(cols)
+
+
+SparkSession.load_dataframe_with_preprocessing = load_dataframe_with_preprocessing
+
+
 def split_dataframe_to_csv_by_column_value(
     self: DataFrame,
     column_to_split_on: str,
