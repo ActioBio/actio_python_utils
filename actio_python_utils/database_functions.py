@@ -7,6 +7,7 @@ import os
 import pgtoolkit.pgpass
 import pgtoolkit.service
 import psycopg2
+import re
 from collections.abc import Callable, Hashable, Iterable, Mapping, MutableMapping
 from contextlib import contextmanager, nullcontext
 from functools import wraps
@@ -16,6 +17,98 @@ from typing import Any, Optional
 from .utils import cfg, CustomCSVDialect, get_csv_fields, rename_dict_keys, zopen
 
 logger = logging.getLogger(__name__)
+
+
+def pg_pass_entry_matches(self, do_regex_matching=False, **attrs: int | str) -> bool:
+    """
+    Enhances :class:`pgpass.PassEntry.pass` to do regex matching
+
+    :param do_regex_matching: Enable this functionality
+    :param attrs: keyword/value pairs correspond to one or more
+        PassEntry attributes (ie. hostname, port, etc...)
+    :return: Whether the entry matches all provided attributes
+    """
+
+    # Provided attributes should be comparable to PassEntry attributes
+    expected_attributes = self.__dict__.keys()
+    for k in attrs.keys():
+        if k not in expected_attributes:
+            raise AttributeError("%s is not a valid attribute" % k)
+
+    is_match = (
+        (lambda key, pattern: re.fullmatch(str(pattern), str(getattr(self, key))))
+        if do_regex_matching
+        else (lambda key, value: str(value) == str(getattr(self, key)))
+    )
+    for k, v in attrs.items():
+        if not is_match(k, v):
+            return False
+    return True
+
+
+pgtoolkit.pgpass.PassEntry.matches = pg_pass_entry_matches
+
+
+def get_pg_service_record(
+    service: Optional[str] = None, service_fn: Optional[str] = None
+) -> dict:
+    """
+    Locates the PostgreSQL login credentials given a service name.
+    Uses ``service = $PGSERVICE`` or ``cfg["db"]["service"]`` if not specified.
+
+    :param service: The PostgreSQL service name to get
+    :param service_fn: The path to the file containing service definitions.
+        Will use :func:`pgtoolkit.service.find` if not specified
+    :return: The dict of values found
+    """
+    if not service_fn:
+        service_fn = pgtoolkit.service.find()
+    if not os.path.isfile(service_fn):
+        raise OSError(f"Service file {service_fn} does not exist.")
+    if not service:
+        service = os.getenv("PGSERVICE")
+        if not service:
+            service = cfg["db"]["service"]
+    services = pgtoolkit.service.parse(service_fn)
+    try:
+        service_record = services[service]
+    except:
+        raise KeyError(f"Service {service} not found.")
+    return rename_dict_keys(
+        service_record,
+        (
+            ("dbname", "database"),
+            ("host", "hostname"),
+            ("name", None),
+            ("user", "username"),
+        ),
+    )
+
+
+def get_pgpass_record(
+    service_dict: Mapping[str, str],
+    pgpass_fn: str = os.path.join(os.path.expanduser("~"), ".pgpass"),
+    do_regex_matching=False,
+) -> pgtoolkit.pgpass.PassEntry:
+    """
+    Gets the PostgreSQL login credentials given the parameters in `service_dict`.
+
+    :param service_dict: Parameters to match pgpass records against.
+    :param pgpass_fn: The path to the file containing database login data
+    :param do_regex_matching: Enable regex matching
+    :return: The database login credentials corresponding to the given service
+    """
+    pgpass_records = []
+    for pgpass_record in pgtoolkit.pgpass.parse(pgpass_fn).lines:
+        if pgpass_record.matches(do_regex_matching=do_regex_matching, **service_dict):
+            pgpass_records.append(pgpass_record)
+    if pgpass_records:
+        if (nrecord := len(pgpass_records)) > 1:
+            raise ValueError(f"Matched {nrecord} records.")
+        else:
+            return pgpass_records[0]
+    else:
+        raise ValueError("Didn't find the matching service.")
 
 
 def get_pg_config(
@@ -33,36 +126,29 @@ def get_pg_config(
     :param pgpass_fn: The path to the file containing database login data
     :return: The database login credentials corresponding to the given service
     """
-    if not service_fn:
-        service_fn = pgtoolkit.service.find()
-    if not os.path.isfile(service_fn):
-        raise OSError(f"Service file {service_fn} does not exist.")
     if not os.path.isfile(pgpass_fn):
         raise OSError(f"pgpass file {pgass_fn} does not exist.")
-    if not service:
-        service = os.getenv("PGSERVICE")
-        if not service:
-            service = cfg["db"]["service"]
-    services = pgtoolkit.service.parse(service_fn)
-    try:
-        service_record = services[service]
-    except:
-        raise KeyError(f"Service {service} not found.")
-    service_dict = rename_dict_keys(
-        service_record,
-        (
-            ("dbname", "database"),
-            ("host", "hostname"),
-            ("name", None),
-            ("user", "username"),
-        ),
-    )
+    service_dict = get_pg_service_record(service, service_fn)
     pgpass = pgtoolkit.pgpass.parse(pgpass_fn)
     for pgpass_record in pgpass.lines:
         if pgpass_record.matches(**service_dict):
             return pgpass_record
     else:
         raise ValueError("Didn't find the matching service.")
+
+
+def format_postgresql_uri_from_pgpass(pgpass_record: pgtoolkit.pgpass.PassEntry) -> str:
+    """
+    Return a PostgreSQL URI connection string
+
+    :param pgpass_record: The record to format
+    :return: The URI formatted as:
+        ``postgresql://user:password@host:port/database``
+    """
+    return (
+        f"postgresql://{pgpass_record.username}:{pgpass_record.password}"
+        f"@{pgpass_record.hostname}:{pgpass_record.port}/{pgpass_record.database}"
+    )
 
 
 def split_schema_from_table(
@@ -384,7 +470,7 @@ class LoggingCursor(DictCursor):
         table, schema = split_schema_from_table(table_name)
         self.execute(
             """SELECT column_name
-            FROM information_schema.columns 
+            FROM information_schema.columns
             WHERE is_generated <> 'ALWAYS' AND table_schema = %s AND table_name = %s
             ORDER BY ordinal_position""",
             (table, schema),
