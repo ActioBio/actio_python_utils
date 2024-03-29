@@ -145,6 +145,8 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         even if ``use_database = True``
     :param spark_extra_packages: Adds additional Spark package dependencies to
         initialize; sets ``use_spark = True``
+    :param skip_db_dry_run_argument: Don't add a dry run parameter even if
+        ``use_database = True``
     :param \**kwargs: Any additional named arguments
     """
 
@@ -161,6 +163,7 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         use_spark_db: bool = False,
         dont_create_db_connection: bool = False,
         spark_extra_packages: Optional[Iterable[tuple[str, str]]] = None,
+        skip_db_dry_run_argument: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -176,11 +179,14 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         self.use_spark_db = use_spark_db
         self.dont_create_db_connection = dont_create_db_connection
         self.spark_extra_packages = spark_extra_packages
+        self.skip_db_dry_run_argument = skip_db_dry_run_argument
         if self.use_logging:
             self.add_log_level_argument()
             self.add_log_format_argument()
         if self.use_database or self.use_spark_db:
             self.add_db_service_argument()
+            if not self.skip_db_dry_run_argument:
+                self.add_db_dry_run_argument()
         if self.use_spark:
             self.add_spark_cores_argument()
             self.add_spark_memory_argument()
@@ -246,6 +252,8 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
             PySpark session
         :param spark_db_name: The ``args`` attribute name to give to PostgreSQL
             login credentials for use with PySpark
+        :param db_dry_run: The ``args`` attribute name to give to whether to do
+            a database dry run (i.e. not commit)
         :param \**kwargs: Any additional named arguments
         :return: Parsed arguments, additionally with attribute ``db`` as a
             database connection if ``use_database = True``, with attribute
@@ -337,6 +345,28 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
             default=default,
             dest="db_service",
             help="PostgreSQL service name to log in with",
+            **kwargs,
+        )
+
+    def add_db_dry_run_argument(
+        self,
+        short_arg: Optional[str] = None,
+        long_arg: Optional[str] = "--dry-run",
+        **kwargs,
+    ):
+        r"""
+        Adds an argument to specify whether to do a dry run
+
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param \**kwargs: Any additional named arguments
+        """
+        self.add_argument(
+            short_arg=short_arg,
+            long_arg=long_arg,
+            dest="dry_run",
+            action="store_true",
+            help="Do a dry run, i.e. not commit",
             **kwargs,
         )
 
