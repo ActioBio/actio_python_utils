@@ -7,14 +7,16 @@ import lzma
 import math
 import operator
 import os
+import pickle
 import re
 import signal
 import subprocess
 import time
 import yaml
 from collections.abc import Callable, Hashable, Iterable, Mapping, MutableMapping
-from functools import partial, reduce, wraps
+from functools import cache, partial, reduce, wraps
 from numbers import Real
+from pathlib import Path
 from typing import Any, Optional
 
 
@@ -545,3 +547,40 @@ def sync_to_s3(dir_name: str, s3_path: str) -> None:
     :param s3_path: The S3 path to sync to
     """
     subprocess.run(["aws", "s3", "sync", dir_name, s3_path], check=True)
+
+
+def save_to_pickle(item: Any, fn: str | Path, overwrite: bool = False) -> None:
+    """
+    Persist the given object.
+
+    :param item: Object to persist
+    :param fn: File path or Path object to save to
+    :param overwrite: Whether to overwrite if the path exists
+    """
+    if Path(fn).exists():
+        if overwrite:
+            logger.debug(f"Path {fn} exists, but overwrite=True; will overwrite.")
+        else:
+            logger.warning(f"Path {fn} exists and overwrite=False.")
+            return
+    logger.info(f"Saving pickle to {fn}.")
+    with open(fn, "wb") as fh:
+        pickle.dump(item, fh)
+
+
+@cache
+def load_pickle(fn: str | Path, data_type: type | None = None) -> Any:
+    """
+    Load the persisted object and optionally confirm it's of the proper type.
+
+    :param fn: The file name or Path to load
+    :param data_type: The data type the pickle should contain
+    :raises TypeError: If ``data_type`` is specified and not the correct format
+    :return: The loaded pickle
+    """
+    with open(fn, "rb") as fh:
+        obj = pickle.load(fh)
+        if data_type:
+            if not isinstance(obj, data_type):
+                raise TypeError(f"{fn}'s data isn't an instance of {data_type}.")
+        return obj
