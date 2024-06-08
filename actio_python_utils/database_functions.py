@@ -510,7 +510,7 @@ class LoggingCursor(DictCursor):
             )
         else:
             fields = set(fields)
-            db_table_columns = set(db_columns)
+            db_table_columns = set(db_table_columns)
             extra = sorted(fields - db_table_columns)
             missing = sorted(db_table_columns - fields)
             extra_clause = f"\nExtra columns:\n{extra}" if extra else ""
