@@ -2,19 +2,24 @@ import _io
 import bz2
 import csv
 import gzip
+import inspect
 import logging
 import lzma
 import math
 import operator
 import os
 import pickle
+import random
 import re
 import signal
 import subprocess
+import sys
 import time
+import traceback
 import yaml
 from collections.abc import Callable, Hashable, Iterable, Mapping, MutableMapping
 from functools import cache, partial, reduce, wraps
+from ipdb import post_mortem
 from numbers import Real
 from pathlib import Path
 from typing import Any, Optional
@@ -28,6 +33,43 @@ with open(cfg_fn) as c:
     cfg = yaml.safe_load(c)
 
 logger = logging.getLogger(__name__)
+
+
+class Debug(object):
+    def __init__(self, debug: bool = False):
+        self.debug = debug
+
+    def __enter__(self):
+        if self.debug:
+            logger.debug(
+                "Will enter ipdb debugging mode if an exception is encountered."
+            )
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            if self.debug:
+                logger.error(exc_tb)
+                self.exc_type = exc_type
+                self.exc_val = exc_val
+                self.exc_tb = exc_tb
+                # traceback.print_exc()
+                # e, m, tb = sys.exc_info()
+                # disable unhelpful logging messages
+                for log_type in ["asyncio", "parso.cache", "parso.python.diff"]:
+                    logging.getLogger(log_type).setLevel(logging.WARNING)
+                post_mortem(exc_tb)
+            return False  # re-reaise the exception
+
+
+def set_seed_with_logging(seed: int | None) -> None:
+    """
+    Sets a seed and logs it along with the calling function's name.
+
+    :param seed: The seed to set
+    """
+    if seed is not None:
+        logger.debug(f"Setting seed={seed} from {inspect.stack()[1].function}.")
+        random.seed(seed)
 
 
 def coalesce(*args) -> Any:

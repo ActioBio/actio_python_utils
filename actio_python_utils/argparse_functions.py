@@ -125,6 +125,8 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         :func:`argparse.ArgumentParser` constructor
     :param description: Passed to :func:`argparse.ArgumentParser` constructor
     :param formatter_class: The help formatter to use
+    :param use_debug: Add an argument to enter debugging mode upon an
+        exception
     :param use_logging: Adds log level and log format arguments, then sets up
         parsing when :meth:`parse_args` is called
     :param use_database: Adds a database service argument, then creates a
@@ -154,7 +156,8 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         self,
         *args,
         description: str = current_frame.f_globals.get("__doc__", ""),
-        formatter_class: argparse.HelpFormatter = CustomFormatter,
+        formatter_class: argparse.HelpFormatter = argparse.ArgumentDefaultsHelpFormatter,
+        use_debug: bool = False,
         use_logging: bool = False,
         use_database: bool = False,
         use_spark: bool = False,
@@ -169,6 +172,7 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         super().__init__(
             description=description, formatter_class=formatter_class, **kwargs
         )
+        self.use_debug = use_debug
         self.use_logging = use_logging
         self.use_database = use_database
         self.use_spark = any(
@@ -180,6 +184,8 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         self.dont_create_db_connection = dont_create_db_connection
         self.spark_extra_packages = spark_extra_packages
         self.skip_db_dry_run_argument = skip_db_dry_run_argument
+        if self.use_debug:
+            self.add_debug_argument()
         if self.use_logging:
             self.add_log_level_argument()
             self.add_log_format_argument()
@@ -271,6 +277,29 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
             if pgpass_record:
                 setattr(args, spark_db_name, pgpass_record)
         return args
+
+    def add_debug_argument(
+        self,
+        short_arg: Optional[str] = "-d",
+        long_arg: Optional[str] = "--debug",
+        **kwargs,
+    ) -> None:
+        r"""
+        Adds an argument to specify that debugging should be done if
+        an exception is encountered and sets ``dest = "debug"``
+
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param \**kwargs: Any additional named arguments
+        """
+        self.add_argument(
+            short_arg=short_arg,
+            long_arg=long_arg,
+            action="store_true",
+            dest="debug",
+            help="activate ipdb debugger if an exception is raised",
+            **kwargs,
+        )
 
     def add_log_level_argument(
         self,
