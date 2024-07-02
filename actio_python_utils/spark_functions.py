@@ -270,7 +270,7 @@ def load_excel_to_dataframe(
     if load_config_options is None:
         load_config_options = []
     load_config_options.append(("header", "true" if header else "false"))
-    return self.load_spark_dataframe(
+    return self.load_dataframe(
         xl_fn,
         format="com.crealytics.spark.excel",
         load_config_options=load_config_options,
