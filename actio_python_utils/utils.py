@@ -393,7 +393,7 @@ def open_gz(
         if "r" in mode:
             return open_pipe("gzip -dc " + filename, mode, buff)
         elif "w" in mode:
-            return open_pipe("gzip >" + filename, mode, buff)
+            return open_pipe("gzip -9 >" + filename, mode, buff)
     elif external == PARALLEL:
         if not WHICH_PIGZ:
             return open_gz(filename, mode, buff, PROCESS)
@@ -606,7 +606,7 @@ def save_to_pickle(item: Any, fn: str | Path, overwrite: bool = False) -> None:
             logger.warning(f"Path {fn} exists and overwrite=False.")
             return
     logger.info(f"Saving pickle to {fn}.")
-    with open(fn, "wb") as fh:
+    with zopen(fn, "wb") as fh:
         pickle.dump(item, fh)
 
 
