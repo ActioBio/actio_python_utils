@@ -75,7 +75,7 @@ def get_pg_service_record(
     except:
         raise KeyError(f"Service {service} not found.")
     return rename_dict_keys(
-        service_record,
+        dict(service_record),
         (
             ("dbname", "database"),
             ("host", "hostname"),

@@ -139,10 +139,11 @@ def rename_dict_keys(
     """
     d = original_dict.copy()
     for old, new in renames:
-        if new is None:
-            del d[old]
-        else:
-            d[new] = d.pop(old)
+        if old in d:
+            if new is None:
+                del d[old]
+            else:
+                d[new] = d.pop(old)
     return d
 
 
