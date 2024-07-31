@@ -5,7 +5,6 @@ Code for argparse-related functionality.
 import _io
 import argparse
 import inspect
-import json
 import logging
 import os
 import pgtoolkit.pgpass

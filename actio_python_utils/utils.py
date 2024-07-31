@@ -22,7 +22,7 @@ from functools import cache, partial, reduce, wraps
 from ipdb import post_mortem
 from numbers import Real
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, BinaryIO, Collection, Optional
 
 
 # load YAML config file
@@ -33,6 +33,19 @@ with open(cfg_fn) as c:
     cfg = yaml.safe_load(c)
 
 logger = logging.getLogger(__name__)
+
+
+def intersect_dict_with_set(
+    d: dict[Hashable, Any], s: Collection[Hashable]
+) -> dict[Hashable, Any]:
+    """
+    Restricts ``d`` to those ``(key, value)`` pairs such that ``key in s``
+
+    :param d: the dictionary
+    :param s: the set
+    :return: the restricted dict
+    """
+    return {key: d[key] for key in d if key in s}
 
 
 class Debug(object):
@@ -48,7 +61,7 @@ class Debug(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             if self.debug:
-                logger.error(exc_tb)
+                logger.error("Exception occurred", exc_info=(exc_type, exc_val, exc_tb))
                 self.exc_type = exc_type
                 self.exc_val = exc_val
                 self.exc_tb = exc_tb
@@ -592,23 +605,28 @@ def sync_to_s3(dir_name: str, s3_path: str) -> None:
     subprocess.run(["aws", "s3", "sync", dir_name, s3_path], check=True)
 
 
-def save_to_pickle(item: Any, fn: str | Path, overwrite: bool = False) -> None:
+def save_to_pickle(
+    item: Any, fn: str | Path | BinaryIO, overwrite: bool = False
+) -> None:
     """
     Persist the given object.
 
     :param item: Object to persist
-    :param fn: File path or Path object to save to
+    :param fn: File path, Path object, or binary file handle to save to
     :param overwrite: Whether to overwrite if the path exists
     """
-    if Path(fn).exists():
-        if overwrite:
-            logger.debug(f"Path {fn} exists, but overwrite=True; will overwrite.")
-        else:
-            logger.warning(f"Path {fn} exists and overwrite=False.")
-            return
-    logger.info(f"Saving pickle to {fn}.")
-    with zopen(fn, "wb") as fh:
-        pickle.dump(item, fh)
+    if isinstance(fn, _io.BufferedWriter):
+        pickle.dump(item, fn)
+    else:
+        if Path(fn).exists():
+            if overwrite:
+                logger.debug(f"Path {fn} exists, but overwrite=True; will overwrite.")
+            else:
+                logger.warning(f"Path {fn} exists and overwrite=False.")
+                return
+        logger.info(f"Saving pickle to {fn}.")
+        with zopen(fn, "wb") as fh:
+            pickle.dump(item, fh)
 
 
 @cache
