@@ -3,7 +3,6 @@ Spark-related functionality.
 """
 
 import logging
-import os
 import pgtoolkit.pgpass
 import pyspark.sql
 import re
@@ -11,6 +10,7 @@ import shutil
 from collections.abc import Callable, Container, Iterable, Mapping
 from functools import partial
 from glob import glob
+from pathlib import Path
 from pyspark.sql import functions as F
 from tempfile import TemporaryDirectory
 from typing import Any, Optional
@@ -71,7 +71,7 @@ def setup_spark(
         spark = spark.config("spark.ui.showConsolePorgress", "false")
     if extra_options:
         for option, value in extra_options:
-            spark = spark.option(option, value)
+            spark = spark.config(option, value)
     if use_db:
         spark = spark.config("spark.jars", postgresql_jdbc)
     if use_excel:
@@ -96,7 +96,7 @@ def setup_spark(
 
 def load_dataframe(
     self: SparkSession,
-    path: str,
+    path: Path | str,
     format: str = "parquet",
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
     **kwargs,
@@ -117,7 +117,7 @@ def load_dataframe(
             logger.debug(f"Setting {option} to {value}.")
             load_func = load_func.option(option, value)
     logger.info(f"Loading {path} with format {format}.")
-    return load_func.load(path, **kwargs)
+    return load_func.load(str(path), **kwargs)
 
 
 SparkSession.load_dataframe = load_dataframe
@@ -125,7 +125,7 @@ SparkSession.load_dataframe = load_dataframe
 
 def load_xml_to_dataframe(
     self: SparkSession,
-    xml_fn: str,
+    xml_fn: Path | str,
     row_tag: str,
     schema: Optional[str] = None,
     value_tag: Optional[str] = None,
@@ -166,8 +166,8 @@ SparkSession.load_xml_to_dataframe = load_xml_to_dataframe
 
 def convert_xml_to_parquet(
     self: SparkSession,
-    xml_fn: str,
-    output_directory: str,
+    xml_fn: Path | str,
+    output_directory: Path | str,
     row_tag: str,
     schema: Optional[str] = None,
     value_tag: Optional[str] = None,
@@ -199,7 +199,7 @@ def convert_xml_to_parquet(
         load_config_options=load_config_options,
         **kwargs,
     )
-    xml_df.write.mode("overwrite").parquet(output_directory)
+    xml_df.write.mode("overwrite").parquet(str(output_directory))
     if return_dataframe:
         return self.load_dataframe(output_directory)
 
@@ -213,6 +213,7 @@ def load_db_to_dataframe(
     relation: Optional[str] = None,
     query: Optional[str] = None,
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
+    service: str | None = None,
     **kwargs,
 ) -> DataFrame:
     r"""
@@ -230,7 +231,7 @@ def load_db_to_dataframe(
         raise ValueError(f"Specify relation or query and not both.")
     load_func = self.read.format("jdbc")
     if not pgpass_record:
-        pgpass_record = get_pg_config()
+        pgpass_record = get_pg_config(service=service)
     load_func = (
         load_func.option(
             "url",
@@ -283,7 +284,7 @@ SparkSession.load_excel_to_dataframe = load_excel_to_dataframe
 
 def load_dataframe_with_preprocessing(
     self: SparkSession,
-    path: str,
+    path: Path | str,
     func: Callable[[str], bool],
     process_line_func: Optional[Callable[[str], list[str]]] = None,
     sep: str = ",",
@@ -305,7 +306,7 @@ def load_dataframe_with_preprocessing(
     """
     if not process_line_func:
         process_line_func = lambda x: x.split(sep)
-    rdd = self.sparkContext.textFile(path).filter(func).map(process_line_func)
+    rdd = self.sparkContext.textFile(str(path)).filter(func).map(process_line_func)
     cols = rdd.first()
     return rdd.filter(lambda x: x != cols).toDF(cols)
 
@@ -356,19 +357,22 @@ def split_dataframe_to_csv_by_column_value(
             cols.insert(0, column_to_split_on)
         header = ",".join(cols) + "\n"
     regex = re.compile(rf"^{column_to_split_on}=(.+)$")
-    if os.path.isdir(output_directory):
+    output_directory = Path(output_directory)
+    if output_directory.exists():
         if overwrite:
             shutil.rmtree(output_directory)
-    if not os.path.isdir(output_directory):
-        os.makedirs(output_directory)
+    if not output_directory.is_dir():
+        output_directory.mkdir(parents=True)
     with TemporaryDirectory() as d:
-        dir_name = os.path.join(d, "partitions")
+        dir_name = Path(d, "partitions")
         self.write.partitionBy(column_to_split_on).csv(dir_name)
-        partitions = sorted(glob(f"{column_to_split_on}=*", root_dir=dir_name))
+        partitions = sorted(
+            [p.stem for p in Path(dir_name).glob(f"{column_to_split_on}=*")]
+        )
         logger.info("Found the following partitions:\n" + "\n".join(partitions))
         for partition in partitions:
             column_value = regex.match(partition).group(1)
-            output_filename = os.path.join(
+            output_filename = Path(
                 output_directory,
                 filename_format.format(column_value=column_value) + ".csv.gz",
             )
@@ -378,9 +382,7 @@ def split_dataframe_to_csv_by_column_value(
             with zopen(f"!gzip -9 > {output_filename}", "w") as out_fh:
                 if include_header:
                     out_fh.write(header)
-                for in_fn in sorted(
-                    glob(os.path.join(dir_name, partition, "part-*.csv"))
-                ):
+                for in_fn in sorted(Path(dir_name, partition).glob("part-*.csv")):
                     with open(in_fn) as in_fh:
                         for line in in_fh:
                             if include_split_column_in_new_files:
