@@ -600,8 +600,26 @@ def serialize_array_field(
                         f"Nested struct {subfield_name} is not supported."
                     )
                 elif subfield_type is stypes.ArrayType:
-                    raise NotImplementedError(
-                        f"Nested array in struct {subfield_name} is not supported."
+                    func = lambda y, subfield: F.when(
+                        y[subfield].isNull(), ""
+                    ).otherwise(
+                        F.concat(
+                            F.lit(r'\\"{'),
+                            F.array_join(
+                                F.transform(
+                                    y[subfield],
+                                    lambda z: F.when(z.isNull(), "").otherwise(
+                                        F.regexp_replace(
+                                            F.regexp_replace(z, '"', r'\\"'),
+                                            "([\t\r\n])",
+                                            r"\\$1",
+                                        )
+                                    ),
+                                ),
+                                ",",
+                            ),
+                            F.lit(r'}\\"'),
+                        )
                     )
                 elif subfield_type is stypes.BooleanType:
                     func = (
@@ -727,8 +745,35 @@ def serialize_struct_field(
                     )
                 )
             elif subfield_type is stypes.ArrayType:
-                raise NotImplementedError(
-                    f"Nested array in struct {subfield_name} is not supported."
+                # Handle ArrayType within the struct
+                element_type = type(subfield.dataType.elementType)
+                subfield_col = F.col(subfield_name)
+                # Define how to serialize each element in the array
+                if element_type is stypes.StringType:
+                    element_func = lambda x: F.when(x.isNull(), "").otherwise(
+                        F.regexp_replace(
+                            F.regexp_replace(x, '"', '""'),
+                            "([\t\r\n])",
+                            r"\\$1",
+                        )
+                    )
+                elif element_type is stypes.BooleanType:
+                    element_func = (
+                        lambda x: F.when(x.isNull(), "")
+                        .when(x == True, "t")
+                        .otherwise("f")
+                    )
+                else:
+                    # For other types, no escaping needed
+                    element_func = lambda x: F.when(x.isNull(), "").otherwise(x)
+                func = F.when(subfield_col.isNull(), "NULL").otherwise(
+                    F.concat(
+                        F.lit('"'),
+                        F.lit("{"),
+                        F.array_join(F.transform(subfield_col, element_func), ","),
+                        F.lit("}"),
+                        F.lit('"'),
+                    )
                 )
             elif subfield_type is stypes.StructType:
                 raise NotImplementedError(
