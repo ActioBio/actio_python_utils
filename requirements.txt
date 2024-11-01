@@ -10,5 +10,5 @@ numpy
 openpyxl
 pgtoolkit
 psycopg2-binary
-pyspark==3.2.1
+pyspark==3.3.2
 awscli
