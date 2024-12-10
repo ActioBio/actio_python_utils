@@ -1,5 +1,5 @@
 db:
-  service: bioinfo_data_psql
+  service: prod
   cursor_factory: LoggingCursor
 data:
   directory: data

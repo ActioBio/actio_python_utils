@@ -14,7 +14,7 @@ from pathlib import Path
 from pyspark.sql import functions as F
 from tempfile import TemporaryDirectory
 from typing import Any, Optional
-from .database_functions import get_pg_config
+from .database_functions import DBConnection, get_pg_config
 from .utils import cast_chromosome_to_int, cfg, zopen
 
 DataFrame = pyspark.sql.dataframe.DataFrame
@@ -213,7 +213,7 @@ def load_db_to_dataframe(
     relation: Optional[str] = None,
     query: Optional[str] = None,
     load_config_options: Optional[Iterable[tuple[str, str]]] = None,
-    service: str | None = None,
+    service: str | None = cfg["db"]["service"],
     **kwargs,
 ) -> DataFrame:
     r"""
@@ -224,6 +224,7 @@ def load_db_to_dataframe(
     :param relation: The database relation to load
     :param query: The database query to load
     :param load_config_options: Any additonal config options to load data
+    :param service: db service to use
     :param \**kwargs: Any additional named arguments
     :return: The dataframe requested
     """
@@ -249,6 +250,62 @@ def load_db_to_dataframe(
 
 
 SparkSession.load_db_to_dataframe = load_db_to_dataframe
+
+
+def save_large_query_to_parquet(
+    self: SparkSession,
+    save_path: Path | str,
+    overwrite: bool = False,
+    relation: Optional[str] = None,
+    query: Optional[str] = None,
+    service: str = cfg["db"]["service"],
+    num_rows_per_chunk: int = 100000,
+    **kwargs,
+) -> DataFrame:
+    r"""
+    Return a PySpark dataframe from either a relation or query and save to a file
+
+    :param self: The PySpark session to use
+    :param save_path: the path to save to
+    :param overwrite: whether to overwrite
+    :param relation: The database relation to load
+    :param query: The database query to load
+    :param service: db service to use
+    :param num_rows_per_chunk: the number of rows per chunk
+    :param \**kwargs: Any additional named arguments
+    :return: The dataframe requested
+    """
+    if relation is None == query is None:
+        raise ValueError(f"Specify relation or query and not both.")
+    save_path = Path(save_path)
+    if save_path.exists() and not overwrite:
+        logger.warning(f"{save_path} exists and overwrite not specified.")
+    else:
+        if relation:
+            query = f"SELECT * FROM {relation}"
+        with TemporaryDirectory() as tmp_dir, DBConnection(service=service) as db:
+            logger.debug(f"Saving chunks of size {num_rows_per_chunk} to {tmp_dir}.")
+            cur = db.cursor(name="chunked_parquet_cursor")
+            cur.execute(query)
+            chunk_num = 0
+            while True:
+                rows = cur.fetchmany(num_rows_per_chunk)
+                if not rows:
+                    break
+                tmp_df = self.createDataFrame(
+                    rows, schema=[col[0] for col in cur.description]
+                )
+                chunk_path = str(Path(tmp_dir, str(chunk_num)))
+                logger.debug(f"Saving chunk #{chunk_num} to {chunk_path}.")
+
+                tmp_df.write.parquet(chunk_path)
+                chunk_num += 1
+            df = self.read.parquet(str(Path(tmp_dir, "*")))
+            df.write.mode("overwrite").parquet(str(save_path))
+    return self.load_dataframe(save_path)
+
+
+SparkSession.save_large_query_to_parquet = save_large_query_to_parquet
 
 
 def load_excel_to_dataframe(

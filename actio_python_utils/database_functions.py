@@ -746,7 +746,6 @@ class DBConnection(object):
         """
         self.logger.debug(f"Connecting to DB with parameters: {self.db_args}.")
         self.db = psycopg2.connect(**self.db_args)
-        self.cur = self.db.cursor()
 
     def disconnect(self, exception: bool) -> None:
         """
