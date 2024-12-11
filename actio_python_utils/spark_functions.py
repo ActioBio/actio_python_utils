@@ -287,11 +287,12 @@ def save_large_query_to_parquet(
             logger.debug(f"Saving chunks of size {num_rows_per_chunk} to {tmp_dir}.")
             cur = db.cursor(name="chunked_parquet_cursor")
             cur.execute(query)
-            chunk_num = 0
+            chunk_num, row_count = 0, 0
             while True:
                 rows = cur.fetchmany(num_rows_per_chunk)
                 if not rows:
                     break
+                row_count += len(rows)
                 tmp_df = self.createDataFrame(
                     rows, schema=[col[0] for col in cur.description]
                 )
@@ -301,6 +302,11 @@ def save_large_query_to_parquet(
                 tmp_df.write.parquet(chunk_path)
                 chunk_num += 1
             df = self.read.parquet(str(Path(tmp_dir, "*")))
+            if (df_row_count := df.count()) != row_count:
+                raise ValueError(
+                    "Sanity check failed: got {row_count} rows from DB and only "
+                    "{df_row_count} rows in the final parquet file."
+                )
             df.write.mode("overwrite").parquet(str(save_path))
     return self.load_dataframe(save_path)
 
@@ -489,7 +495,7 @@ def count_nulls(
     :return: The new dataframe with null counts per column
     """
     return self.select(
-        [F.count(F.when(F.isnull(col), col)).alias(col) for col in self.columns]
+        [F.count(F.when(F.isnull(f"`{col}`"), 1)).alias(col) for col in self.columns]
     )
 
 
