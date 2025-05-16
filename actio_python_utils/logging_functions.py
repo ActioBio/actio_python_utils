@@ -93,6 +93,8 @@ def setup_logging(
     stream_handler_logging_level: Optional[int | str] = None,
     format_string: str = cfg["logging"]["format"],
     loggers_to_ignore: Optional[list[str]] = cfg["logging"]["loggers_to_ignore"],
+    file_handle: Optional[_io.TextIOWrapper] = None,
+    file_logging_level: Optional[int | str] = None,
 ) -> None:
     """
     Set up the logger given by name, attach a stream handler, set the format,
@@ -107,19 +109,30 @@ def setup_logging(
     :param format_string: How to format log messages
     :param loggers_to_ignore: A list of logger names for which to set their
         logging levels to ``logging.CRITICAL``
+    :param file_handle: file handle to also log to
+    :param file_logging_level: log level for file, defaults to same as
+        `stream_handler_logging_level`
     """
     logger_to_configure = logging.getLogger(name)
     if logger_to_configure.hasHandlers():
         # don't add another handler if defined
         return
     logger_to_configure.setLevel(logging_level)
-    ch = logging.StreamHandler(stream)
     if stream_handler_logging_level is None:
         stream_handler_logging_level = logging_level
-    ch.setLevel(stream_handler_logging_level)
     formatter = logging.Formatter(format_string)
+    ch = logging.StreamHandler(stream)
     ch.setFormatter(formatter)
+    ch.setLevel(stream_handler_logging_level)
     logger_to_configure.addHandler(ch)
+    if file_handle:
+        sh = logging.StreamHandler(file_handle)
+        sh.setLevel(
+            stream_handler_logging_level
+            if file_logging_level is None
+            else file_logging_level
+        )
+        logger_to_configure.addHandler(sh)
     if loggers_to_ignore:
         for logger in loggers_to_ignore:
             logging.getLogger(logger).setLevel(logging.CRITICAL)

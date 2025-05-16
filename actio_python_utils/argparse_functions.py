@@ -188,6 +188,7 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
         if self.use_logging:
             self.add_log_level_argument()
             self.add_log_format_argument()
+            self.add_log_to_file_argument()
         if self.use_database or self.use_spark_db:
             self.add_db_service_argument()
             if not self.skip_db_dry_run_argument:
@@ -348,6 +349,33 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
             default=default,
             dest="log_format",
             help="the logging format to use",
+            **kwargs,
+        )
+
+    def add_log_to_file_argument(
+        self,
+        short_arg: Optional[str] = "-e",
+        long_arg: Optional[str] = "--log-to-file",
+        default: Optional[ZFileType] = None,
+        type: str = "at",
+        **kwargs,
+    ) -> None:
+        r"""
+        Adds an argument to optionally specify a log file to
+        ``dest = "log_file"``
+
+        :param short_arg: Short argument name to use
+        :param long_arg: Long argument name to use
+        :param default: Default file name
+        :param \**kwargs: Any additional named arguments
+        """
+        self.add_argument(
+            short_arg=short_arg,
+            long_arg=long_arg,
+            default=default,
+            dest="log_file",
+            type=ZFileType(type),
+            help="log to a specified file in addition to stderr",
             **kwargs,
         )
 
@@ -525,6 +553,7 @@ class EnhancedArgumentParser(argparse.ArgumentParser):
                 if "log_format" in args
                 else utils.cfg["logging"]["format"]
             ),
+            file_handle=args.log_file,
         )
 
     def setup_database(
