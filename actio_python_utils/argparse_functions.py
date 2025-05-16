@@ -12,6 +12,7 @@ import psycopg2.extensions
 import pyspark.sql
 from collections.abc import Iterable
 from functools import partial
+from pathlib import Path
 from typing import Optional
 from . import (
     utils,
@@ -69,32 +70,40 @@ def key_value_pair(arg: str, sep: str = "=") -> tuple[str, str]:
     raise ValueError("Argument must be formatted as KEY=VALUE.")
 
 
-def file_exists(fn: str) -> str:
+def file_exists(fn: str | Path) -> Path:
     """
-    Returns the real path to file ``fn`` if it exists
+    Returns the path object to file ``fn`` if it exists
 
     :param fn: The file name to check
-    :raises OSError: If ``fn`` doesn't exist
-    :return: The real path to ``fn``
+    :raises FileNotFoundError: If ``fn`` doesn't exist
+    :raises IsADirectoryError: If ``fn`` exists but is a directory
+    :return: The path object for ``fn``
     """
-    if os.path.isfile(fn):
-        return os.path.realpath(fn)
+    if (path := Path(fn)).exists():
+        if path.is_file():
+            return path
+        else:
+            raise IsADirectoryError(f"{fn} is a directory.")
     else:
-        raise OSError(f"{fn} does not exist.")
+        raise FileNotFoundError(f"{fn} does not exist.")
 
 
-def dir_exists(dirn: str) -> str:
+def dir_exists(dirn: str | Path) -> str | Path:
     """
-    Returns the real path to directory ``dirn`` if it exists
+    Returns the path object to directory ``dirn`` if it exists
 
     :param dirn: The directory name to check
-    :raises OSError: If ``dirn`` doesn't exist
-    :return: The real path to ``dirn``
+    :raises FileNotFoundError: If ``dirn`` doesn't exist
+    :raises NotADirectoryError: If ``dirn`` exists but isn't a directory
+    :return: The path object for ``dirn``
     """
-    if os.path.isdir(dirn):
-        return os.path.realpath(dirn)
+    if (path := Path(dirn)).exists():
+        if path.is_dir():
+            return path
+        else:
+            raise NotADirectoryError(f"{fn} is not a directory.")
     else:
-        raise OSError(f"{dirn} does not exist.")
+        raise FileNotFoundError(f"{dirn} does not exist.")
 
 
 def str_from_file(fn: str) -> str:
