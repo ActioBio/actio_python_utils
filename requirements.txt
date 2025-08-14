@@ -12,3 +12,4 @@ pgtoolkit
 psycopg2-binary
 pyspark
 awscli
+ipdb
